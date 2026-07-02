@@ -39,15 +39,14 @@ function resolve(pathname: string): Chrome {
 export function AppHeader({
   user,
 }: {
-  user: { displayName: string } | null;
+  user: { displayName: string; accentColor: string } | null;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { title, subtitle } = resolve(pathname);
   const showBack = !PRIMARY_TABS.includes(pathname);
   const initial = (user?.displayName ?? "?").charAt(0).toUpperCase();
-  // accentColor column arrives in Phase 2; hardcode Cullen emerald for now.
-  const accent = "#059669";
+  const accent = user?.accentColor ?? "#059669";
   const unread = 0;
 
   return (

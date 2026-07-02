@@ -6,7 +6,19 @@ export const users = sqliteTable("users", {
   username: text("username").notNull().unique(),
   displayName: text("display_name").notNull(),
   passwordHash: text("password_hash").notNull(),
+  accentColor: text("accent_color").notNull().default("#059669"),
 });
+
+/** Grocery aisle categories, shared by staples/groceryItems/mealIngredients. */
+export const GROCERY_CATEGORIES = [
+  "produce",
+  "meat-fish",
+  "dairy-eggs",
+  "pantry",
+  "frozen",
+  "household",
+] as const;
+export type GroceryCategory = (typeof GROCERY_CATEGORIES)[number];
 
 export const sessions = sqliteTable("sessions", {
   id: text("id").primaryKey(),
@@ -111,4 +123,77 @@ export const documents = sqliteTable("documents", {
   uploadedAt: integer("uploaded_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
+});
+
+export const meals = sqliteTable("meals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  date: text("date").notNull(), // YYYY-MM-DD
+  title: text("title").notNull(),
+  cook: integer("cook", { mode: "boolean" }).notNull().default(true),
+  out: integer("out", { mode: "boolean" }).notNull().default(false),
+  notes: text("notes"),
+  ingredientsAddedAt: integer("ingredients_added_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export const mealIngredients = sqliteTable("meal_ingredients", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  mealId: integer("meal_id")
+    .notNull()
+    .references(() => meals.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  category: text("category", { enum: GROCERY_CATEGORIES }).notNull(),
+  qty: text("qty"),
+});
+
+export const staples = sqliteTable("staples", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  category: text("category", { enum: GROCERY_CATEGORIES }).notNull(),
+});
+
+export const groceryItems = sqliteTable("grocery_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  category: text("category", { enum: GROCERY_CATEGORIES }).notNull(),
+  qty: text("qty"),
+  checked: integer("checked", { mode: "boolean" }).notNull().default(false),
+  isStaple: integer("is_staple", { mode: "boolean" }).notNull().default(false),
+  sourceMealId: integer("source_meal_id").references(() => meals.id, {
+    onDelete: "set null",
+  }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export const events = sqliteTable("events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  date: text("date").notNull(), // YYYY-MM-DD
+  time: text("time"), // "19:30" (24h), nullable
+  title: text("title").notNull(),
+  type: text("type", { enum: ["date", "event", "chore"] }).notNull(),
+  assigneeId: integer("assignee_id").references(() => users.id),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export const notifications = sqliteTable("notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  severity: text("severity", {
+    enum: ["overdue", "due-soon", "info", "success"],
+  }).notNull(),
+  text: text("text").notNull(),
+  readAt: integer("read_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
 });

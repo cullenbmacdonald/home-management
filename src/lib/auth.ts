@@ -38,6 +38,7 @@ export const getCurrentUser = cache(async () => {
       userId: users.id,
       username: users.username,
       displayName: users.displayName,
+      accentColor: users.accentColor,
       expiresAt: sessions.expiresAt,
     })
     .from(sessions)
@@ -49,6 +50,7 @@ export const getCurrentUser = cache(async () => {
     id: row.userId,
     username: row.username,
     displayName: row.displayName,
+    accentColor: row.accentColor,
   };
 });
 

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
     "db:generate": "drizzle-kit generate",
     "e2e": "node scripts/e2e/run.mjs"
   },
