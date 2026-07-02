@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Homebase
 
-## Getting Started
+Home management app for our apartment: recurring maintenance, shared tasks,
+furniture wishlist, appliance inventory, documents, and contacts.
 
-First, run the development server:
+## Stack
+
+- Next.js (App Router) + TypeScript + Tailwind
+- SQLite via Drizzle ORM (single file in `data/`, WAL mode)
+- Simple cookie-session auth, two seeded accounts
+- Self-hosted via Docker
+
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The database is created, migrated, and seeded automatically on first run
+(`data/homebase.db`). Default logins: `cullen` / `changeme` and
+`partner` / `changeme` — override with `USER1_*` / `USER2_*` env vars before
+first boot.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Schema changes: edit `src/db/schema.ts`, then `npm run db:generate` to create a
+migration (applied automatically at startup).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Self-hosting
 
-## Learn More
+```bash
+USER1_PASSWORD=... USER2_PASSWORD=... docker compose up -d --build
+```
 
-To learn more about Next.js, take a look at the following resources:
+Data (SQLite DB + uploaded documents) lives in the `homebase-data` volume,
+mounted at `/data`. Back that up and you've backed up everything.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `src/db/` — schema, connection, migrations bootstrap, seed
+- `src/lib/` — auth, maintenance due-date logic, formatters
+- `src/app/(app)/` — authed pages, one folder per module, `actions.ts` per module
+- `src/components/` — client components (interactive rows/cards/buttons)
 
-## Deploy on Vercel
+## Docs
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [docs/product.md](docs/product.md) — vision, UX principles, feature specs, roadmap
+- [docs/architecture.md](docs/architecture.md) — stack, conventions, auth, testing, deployment, gotchas

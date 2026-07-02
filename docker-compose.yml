@@ -1,0 +1,19 @@
+services:
+  homebase:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - homebase-data:/data
+    environment:
+      # First-boot account setup (only used when the DB is empty)
+      USER1_USERNAME: cullen
+      USER1_NAME: Cullen
+      USER1_PASSWORD: ${USER1_PASSWORD:-changeme}
+      USER2_USERNAME: partner
+      USER2_NAME: Partner
+      USER2_PASSWORD: ${USER2_PASSWORD:-changeme}
+    restart: unless-stopped
+
+volumes:
+  homebase-data:

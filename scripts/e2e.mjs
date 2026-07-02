@@ -1,0 +1,89 @@
+import { chromium } from "playwright";
+
+const base = "http://localhost:3777";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+const ok = (name, cond) => {
+  console.log(cond ? `PASS ${name}` : `FAIL ${name}`);
+  if (!cond) process.exitCode = 1;
+};
+
+// login
+await page.goto(base + "/");
+await page.waitForURL("**/login");
+await page.fill('input[name="username"]', "cullen");
+await page.fill('input[name="password"]', "changeme");
+await page.click('button[type="submit"]');
+await page.waitForURL(base + "/");
+ok("login redirects to dashboard", true);
+ok("greeting shows Cullen", (await page.textContent("h1")).includes("Cullen"));
+
+// tasks: add, toggle
+await page.goto(base + "/tasks");
+await page.fill('input[name="title"]', "Buy furnace filter");
+await page.click('form button[type="submit"]');
+await page.waitForTimeout(800);
+ok("task appears", await page.getByText("Buy furnace filter").isVisible());
+await page.click('button[aria-label="Mark complete"]');
+await page.waitForTimeout(800);
+await page.locator("details summary").click(); // completed tasks live in a collapsed section
+ok("task completes", await page.locator("li .line-through").first().isVisible());
+
+// maintenance: mark done
+await page.goto(base + "/maintenance");
+const before = await page.locator("li", { hasText: "smoke & CO" }).textContent();
+await page.locator("li", { hasText: "smoke & CO" }).getByRole("button", { name: /Done/ }).click();
+await page.waitForTimeout(800);
+const after = await page.locator("li", { hasText: "smoke & CO" }).textContent();
+ok("mark-done records completion", before.includes("last: never") && after.includes("by Cullen"));
+
+// wishlist: add + status change
+await page.goto(base + "/wishlist");
+await page.fill('input[name="name"]', "Sofa");
+await page.fill('input[name="price"]', "2400");
+await page.selectOption('select[name="roomId"]', { label: "Living Room" });
+await page.locator('form button[type="submit"]').click();
+await page.waitForTimeout(800);
+ok("wishlist item appears", await page.getByText("Sofa").first().isVisible());
+await page.getByRole("button", { name: "ordered" }).click();
+await page.waitForTimeout(800);
+ok("spend total updates", (await page.textContent("body")).includes("committed $2,400"));
+
+// inventory add
+await page.goto(base + "/inventory");
+await page.click("summary");
+await page.fill('input[name="name"]', "Bedroom mini-split");
+await page.fill('input[name="brand"]', "Mitsubishi");
+await page.locator('form button[type="submit"]').click();
+await page.waitForTimeout(800);
+ok("inventory item appears", await page.getByText("Bedroom mini-split").isVisible());
+
+// vendor add
+await page.goto(base + "/vendors");
+await page.click("summary");
+await page.fill('input[name="name"]', "Joe the Plumber");
+await page.fill('input[name="phone"]', "718-555-0123");
+await page.locator('form button[type="submit"]').click();
+await page.waitForTimeout(800);
+ok("vendor appears with tel link", await page.locator('a[href="tel:718-555-0123"]').isVisible());
+
+// document upload
+await page.goto(base + "/documents");
+await page.setInputFiles('input[type="file"]', {
+  name: "manual.pdf",
+  mimeType: "application/pdf",
+  buffer: Buffer.from("%PDF-1.4 test"),
+});
+await page.locator('form button[type="submit"]').click();
+await page.waitForTimeout(800);
+ok("document listed", await page.getByText("manual.pdf").isVisible());
+const dl = await page.request.get(base + "/api/documents/1");
+ok("document downloads", dl.ok() && (await dl.text()).startsWith("%PDF"));
+
+// logout
+await page.goto(base + "/more");
+await page.getByRole("button", { name: /Sign out/ }).click();
+await page.waitForURL("**/login");
+ok("logout returns to login", true);
+
+await browser.close();

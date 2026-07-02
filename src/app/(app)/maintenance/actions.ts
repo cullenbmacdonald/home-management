@@ -1,0 +1,63 @@
+"use server";
+
+import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { db } from "@/db";
+import { maintenanceItems, maintenanceLogs } from "@/db/schema";
+import { requireUser } from "@/lib/auth";
+
+export async function markDone(itemId: number, notes?: string) {
+  const user = await requireUser();
+  db.insert(maintenanceLogs)
+    .values({ itemId, completedById: user.id, notes: notes || null })
+    .run();
+  revalidatePath("/maintenance");
+  revalidatePath("/");
+}
+
+export async function createMaintenanceItem(formData: FormData) {
+  await requireUser();
+  const name = String(formData.get("name") ?? "").trim();
+  const intervalDays = Number(formData.get("intervalDays"));
+  if (!name || !Number.isFinite(intervalDays) || intervalDays < 1) return;
+  db.insert(maintenanceItems)
+    .values({
+      name,
+      intervalDays: Math.round(intervalDays),
+      notes: String(formData.get("notes") ?? "").trim() || null,
+      startDate:
+        String(formData.get("startDate") ?? "") ||
+        new Date().toISOString().slice(0, 10),
+    })
+    .run();
+  revalidatePath("/maintenance");
+  redirect("/maintenance");
+}
+
+export async function updateMaintenanceItem(id: number, formData: FormData) {
+  await requireUser();
+  const name = String(formData.get("name") ?? "").trim();
+  const intervalDays = Number(formData.get("intervalDays"));
+  if (!name || !Number.isFinite(intervalDays) || intervalDays < 1) return;
+  db.update(maintenanceItems)
+    .set({
+      name,
+      intervalDays: Math.round(intervalDays),
+      notes: String(formData.get("notes") ?? "").trim() || null,
+    })
+    .where(eq(maintenanceItems.id, id))
+    .run();
+  revalidatePath("/maintenance");
+  redirect(`/maintenance/${id}`);
+}
+
+export async function deactivateMaintenanceItem(id: number) {
+  await requireUser();
+  db.update(maintenanceItems)
+    .set({ active: false })
+    .where(eq(maintenanceItems.id, id))
+    .run();
+  revalidatePath("/maintenance");
+  redirect("/maintenance");
+}
