@@ -26,8 +26,6 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">Tasks</h1>
-
       <form
         action={createTask}
         className="space-y-2 rounded-xl bg-white p-3 shadow-sm"

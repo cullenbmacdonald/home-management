@@ -31,10 +31,10 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">
+        <h1 className="font-serif text-[30px] leading-[1.1] text-[#1c1917]">
           {greeting}, {user?.displayName}
         </h1>
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-[#a8a29e]">
           {new Date().toLocaleDateString("en-US", {
             weekday: "long",
             month: "long",

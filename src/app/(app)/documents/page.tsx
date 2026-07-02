@@ -15,8 +15,6 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">Documents</h1>
-
       <form
         action={uploadDocument}
         className="space-y-2 rounded-xl bg-white p-3 shadow-sm"

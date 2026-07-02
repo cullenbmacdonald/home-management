@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:#e7e5e4;font-family:'Hanken Grotesk',system-ui,sans-serif;color:#1c1917;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:0;height:0}
+  @keyframes screenIn{from{transform:translateY(7px)}to{transform:translateY(0)}}
+  @keyframes sheetIn{from{transform:translateY(16px)}to{transform:translateY(0)}}
+  @keyframes fadeIn{from{transform:translateY(3px)}to{transform:translateY(0)}}
+  @keyframes pop{0%{transform:scale(.85)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+  button{font-family:inherit;cursor:pointer}
+  input{font-family:inherit}
+</style>
+</helmet>
+
+<div style="max-width:430px;margin:0 auto;height:100dvh;min-height:560px;background:#faf9f8;display:flex;flex-direction:column;position:relative;box-shadow:0 0 60px rgba(0,0,0,.08);overflow:hidden;">
+
+  <!-- HEADER -->
+  <div style="flex:none;position:relative;z-index:20;background:rgba(250,249,248,.94);backdrop-filter:blur(10px);border-bottom:1px solid #efece9;padding:13px 16px;display:flex;align-items:center;gap:11px;">
+    <sc-if value="{{ showBack }}">
+      <button onClick="{{ goBack }}" style="flex:none;width:32px;height:32px;border-radius:50%;border:1px solid #e7e5e4;background:#fff;color:#57534e;font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center;">‹</button>
+    </sc-if>
+    <div style="flex:1;min-width:0;">
+      <div style="font-family:'Instrument Serif',serif;font-size:23px;line-height:1.05;color:#1c1917;letter-spacing:.01em;">{{ headerTitle }}</div>
+      <div style="font-size:11px;color:#a8a29e;margin-top:2px;letter-spacing:.01em;">{{ headerSub }}</div>
+    </div>
+    <button onClick="{{ cycleUser }}" title="Switch active user" style="flex:none;width:34px;height:34px;border-radius:50%;border:none;background:{{ userColor }};color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;">{{ userInitial }}</button>
+    <button onClick="{{ openNotifs }}" style="flex:none;position:relative;width:34px;height:34px;border-radius:50%;border:1px solid #e7e5e4;background:#fff;display:flex;align-items:center;justify-content:center;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#57534e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <sc-if value="{{ hasUnread }}">
+        <span style="position:absolute;top:-3px;right:-3px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #faf9f8;">{{ unreadCount }}</span>
+      </sc-if>
+    </button>
+  </div>
+
+  <!-- MAIN -->
+  <div style="flex:1;overflow-y:auto;overflow-x:hidden;">
+
+    <!-- ============ HOME ============ -->
+    <sc-if value="{{ showHome }}" hint-placeholder-val="{{ true }}">
+      <div style="animation:screenIn .3s ease;padding:18px 16px 90px;">
+        <div style="font-family:'Instrument Serif',serif;font-size:30px;line-height:1.1;color:#1c1917;margin-bottom:3px;">{{ greeting }}</div>
+        <div style="font-size:13px;color:#a8a29e;margin-bottom:16px;">{{ homeSummary }}</div>
+
+        <!-- variant switcher -->
+        <div style="display:flex;gap:4px;background:#f0ede9;border:1px solid #e7e5e4;border-radius:12px;padding:4px;margin-bottom:18px;">
+          <button onClick="{{ setCards }}" style="flex:1;padding:7px 0;border:none;border-radius:9px;font-size:12px;font-weight:600;background:{{ vCardsBg }};color:{{ vCardsFg }};box-shadow:{{ vCardsSh }};">Cards</button>
+          <button onClick="{{ setFocus }}" style="flex:1;padding:7px 0;border:none;border-radius:9px;font-size:12px;font-weight:600;background:{{ vFocusBg }};color:{{ vFocusFg }};box-shadow:{{ vFocusSh }};">Focus</button>
+          <button onClick="{{ setAgenda }}" style="flex:1;padding:7px 0;border:none;border-radius:9px;font-size:12px;font-weight:600;background:{{ vAgendaBg }};color:{{ vAgendaFg }};box-shadow:{{ vAgendaSh }};">Agenda</button>
+        </div>
+
+        <!-- VARIANT: CARDS -->
+        <sc-if value="{{ dashCards }}">
+          <div style="animation:fadeIn .25s ease;">
+            <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin:4px 4px 9px;">Needs attention</div>
+            <sc-for list="{{ attention }}" as="it" hint-placeholder-count="3">
+              <div style="background:#fff;border:1px solid #efece9;border-left:3px solid {{ it.accent }};border-radius:14px;padding:13px 14px;margin-bottom:9px;display:flex;align-items:center;gap:12px;">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15px;font-weight:600;color:#1c1917;">{{ it.name }}</div>
+                  <div style="display:flex;align-items:center;gap:7px;margin-top:3px;">
+                    <span style="font-size:11px;font-weight:700;color:{{ it.badgeFg }};background:{{ it.badgeBg }};padding:2px 7px;border-radius:6px;">{{ it.badge }}</span>
+                    <span style="font-size:11px;color:#a8a29e;">{{ it.room }}</span>
+                  </div>
+                </div>
+                <button onClick="{{ it.onDone }}" style="flex:none;padding:8px 14px;border:none;border-radius:10px;background:#059669;color:#fff;font-size:13px;font-weight:700;">Done</button>
+              </div>
+            </sc-for>
+
+            <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin:22px 4px 9px;">Today</div>
+            <div style="background:#fff;border:1px solid #efece9;border-radius:16px;padding:6px 14px;">
+              <sc-for list="{{ todayEvents }}" as="ev" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid {{ ev.divider }};">
+                  <div style="flex:none;width:52px;font-size:12px;font-weight:600;color:#78716c;">{{ ev.time }}</div>
+                  <div style="flex:none;width:8px;height:8px;border-radius:50%;background:{{ ev.dot }};"></div>
+                  <div style="flex:1;font-size:14px;color:#1c1917;">{{ ev.title }}</div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ noToday }}"><div style="padding:16px 0;text-align:center;color:#a8a29e;font-size:13px;">Nothing scheduled today.</div></sc-if>
+            </div>
+
+            <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin:22px 4px 9px;">This week's groceries</div>
+            <button onClick="{{ goShop }}" style="width:100%;text-align:left;background:#fff;border:1px solid #efece9;border-radius:16px;padding:15px;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+                <span style="font-size:14px;font-weight:600;color:#1c1917;">{{ groceryRemaining }} items left</span>
+                <span style="font-size:12px;color:#a8a29e;">{{ groceryDone }}/{{ groceryTotal }} in cart</span>
+              </div>
+              <div style="height:8px;border-radius:5px;background:#f0ede9;overflow:hidden;"><div style="height:100%;width:{{ groceryPct }};background:#059669;border-radius:5px;transition:width .3s;"></div></div>
+            </button>
+
+            <sc-if value="{{ haOn }}">
+              <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin:22px 4px 9px;">Home</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+                <sc-for list="{{ haTemps }}" as="t" hint-placeholder-count="2">
+                  <div style="background:#fff;border:1px solid #efece9;border-radius:14px;padding:13px;">
+                    <div style="font-size:11px;color:#a8a29e;">{{ t.room }}</div>
+                    <div style="font-size:24px;font-weight:700;color:#1c1917;margin-top:2px;">{{ t.label }}</div>
+                  </div>
+                </sc-for>
+                <button onClick="{{ toggleLock }}" style="text-align:left;background:{{ lockBg }};border:1px solid {{ lockBorder }};border-radius:14px;padding:13px;">
+                  <div style="font-size:11px;color:#a8a29e;">Front door</div>
+                  <div style="font-size:17px;font-weight:700;color:{{ lockFg }};margin-top:4px;">{{ lockLabel }}</div>
+                </button>
+                <button onClick="{{ goHA }}" style="text-align:left;background:#fff;border:1px solid #efece9;border-radius:14px;padding:13px;">
+                  <div style="font-size:11px;color:#a8a29e;">Mini-split</div>
+                  <div style="font-size:17px;font-weight:700;color:#1c1917;margin-top:4px;">{{ thermLabel }}</div>
+                </button>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- VARIANT: FOCUS -->
+        <sc-if value="{{ dashFocus }}">
+          <div style="animation:fadeIn .25s ease;">
+            <div style="background:linear-gradient(160deg,#065f46,#047857);border-radius:22px;padding:24px 22px;color:#fff;margin-bottom:16px;">
+              <div style="font-size:13px;opacity:.85;font-weight:500;">Right now</div>
+              <div style="font-size:52px;font-weight:800;line-height:1;margin:6px 0 2px;">{{ attentionCount }}</div>
+              <div style="font-size:15px;opacity:.92;">things need your attention</div>
+              <div style="height:1px;background:rgba(255,255,255,.18);margin:16px 0;"></div>
+              <div style="display:flex;gap:20px;">
+                <div><div style="font-size:22px;font-weight:700;">{{ openTaskCount }}</div><div style="font-size:12px;opacity:.8;">open tasks</div></div>
+                <div><div style="font-size:22px;font-weight:700;">{{ groceryRemaining }}</div><div style="font-size:12px;opacity:.8;">to buy</div></div>
+                <div><div style="font-size:22px;font-weight:700;">{{ todayCount }}</div><div style="font-size:12px;opacity:.8;">today</div></div>
+              </div>
+            </div>
+            <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin:4px 4px 10px;">Knock these out</div>
+            <sc-for list="{{ attention }}" as="it" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:13px;padding:13px 4px;border-bottom:1px solid #f0ede9;">
+                <button onClick="{{ it.onDone }}" style="flex:none;width:26px;height:26px;border-radius:50%;border:2px solid #d6d3d1;background:#fff;"></button>
+                <div style="flex:1;">
+                  <div style="font-size:15px;font-weight:600;color:#1c1917;">{{ it.name }}</div>
+                  <div style="font-size:12px;font-weight:600;color:{{ it.badgeFg }};margin-top:1px;">{{ it.badge }}</div>
+                </div>
+                <span style="font-size:11px;color:#a8a29e;">{{ it.room }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- VARIANT: AGENDA -->
+        <sc-if value="{{ dashAgenda }}">
+          <div style="animation:fadeIn .25s ease;">
+            <div style="position:relative;padding-left:22px;">
+              <div style="position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:#e7e5e4;"></div>
+              <sc-for list="{{ agendaItems }}" as="a" hint-placeholder-count="4">
+                <div style="position:relative;padding:0 0 20px;">
+                  <div style="position:absolute;left:-22px;top:3px;width:12px;height:12px;border-radius:50%;background:{{ a.dot }};border:2px solid #faf9f8;"></div>
+                  <div style="font-size:11px;font-weight:700;color:#a8a29e;letter-spacing:.03em;">{{ a.time }}</div>
+                  <div style="background:#fff;border:1px solid #efece9;border-radius:13px;padding:12px 13px;margin-top:5px;display:flex;align-items:center;gap:10px;">
+                    <div style="flex:1;">
+                      <div style="font-size:14px;font-weight:600;color:#1c1917;">{{ a.title }}</div>
+                      <div style="font-size:12px;color:#a8a29e;margin-top:1px;">{{ a.meta }}</div>
+                    </div>
+                    <sc-if value="{{ a.actionable }}">
+                      <button onClick="{{ a.onDone }}" style="flex:none;padding:7px 12px;border:none;border-radius:9px;background:#ecfdf5;color:#059669;font-size:12px;font-weight:700;">Done</button>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ============ UPKEEP ============ -->
+    <sc-if value="{{ showUpkeep }}">
+      <div style="animation:screenIn .3s ease;padding:16px 16px 90px;">
+        <sc-if value="{{ hints }}"><div style="font-size:13px;color:#a8a29e;margin:0 4px 14px;line-height:1.5;">Recurring maintenance, soonest due first. Next-due is computed from the last time it was logged — mark it and the clock resets.</div></sc-if>
+        <sc-for list="{{ upkeepList }}" as="it" hint-placeholder-count="6">
+          <div style="background:#fff;border:1px solid #efece9;border-radius:14px;padding:13px 14px;margin-bottom:9px;display:flex;align-items:center;gap:12px;">
+            <button onClick="{{ it.onOpen }}" style="flex:1;min-width:0;text-align:left;background:none;border:none;padding:0;">
+              <div style="font-size:15px;font-weight:600;color:#1c1917;">{{ it.name }}</div>
+              <div style="display:flex;align-items:center;gap:7px;margin-top:4px;flex-wrap:wrap;">
+                <span style="font-size:11px;font-weight:700;color:{{ it.badgeFg }};background:{{ it.badgeBg }};padding:2px 7px;border-radius:6px;">{{ it.badge }}</span>
+                <span style="font-size:11px;color:#a8a29e;">every {{ it.intervalLabel }} · {{ it.room }}</span>
+              </div>
+            </button>
+            <button onClick="{{ it.onDone }}" style="flex:none;padding:8px 13px;border:none;border-radius:10px;background:#059669;color:#fff;font-size:13px;font-weight:700;">Done</button>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ============ PLAN ============ -->
+    <sc-if value="{{ showPlan }}">
+      <div style="animation:screenIn .3s ease;padding:14px 16px 90px;">
+        <div style="display:flex;gap:4px;background:#f0ede9;border:1px solid #e7e5e4;border-radius:12px;padding:4px;margin-bottom:16px;">
+          <button onClick="{{ setWeek }}" style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:13px;font-weight:600;background:{{ pWeekBg }};color:{{ pWeekFg }};box-shadow:{{ pWeekSh }};">Week</button>
+          <button onClick="{{ setMeals }}" style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:13px;font-weight:600;background:{{ pMealsBg }};color:{{ pMealsFg }};box-shadow:{{ pMealsSh }};">Meals</button>
+        </div>
+
+        <!-- WEEK -->
+        <sc-if value="{{ showWeekView }}">
+          <div style="animation:fadeIn .25s ease;">
+            <div style="display:flex;gap:6px;margin-bottom:8px;">
+              <sc-for list="{{ weekStrip }}" as="d" hint-placeholder-count="7">
+                <div style="flex:1;text-align:center;padding:8px 0 7px;border-radius:11px;background:{{ d.bg }};border:1px solid {{ d.border }};">
+                  <div style="font-size:10px;font-weight:600;color:{{ d.fg2 }};letter-spacing:.03em;">{{ d.short }}</div>
+                  <div style="font-size:15px;font-weight:700;color:{{ d.fg }};margin-top:1px;">{{ d.num }}</div>
+                  <div style="height:5px;margin-top:4px;display:flex;gap:2px;justify-content:center;"><sc-for list="{{ d.dots }}" as="dot"><span style="width:4px;height:4px;border-radius:50%;background:{{ dot.c }};"></span></sc-for></div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:12px;margin:14px 4px 4px;flex-wrap:wrap;">
+              <sc-for list="{{ legend }}" as="l"><span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#78716c;"><span style="width:8px;height:8px;border-radius:50%;background:{{ l.c }};"></span>{{ l.label }}</span></sc-for>
+            </div>
+            <sc-for list="{{ weekDays }}" as="day" hint-placeholder-count="7">
+              <div style="margin-top:14px;">
+                <div style="display:flex;align-items:baseline;gap:8px;margin:0 4px 7px;">
+                  <span style="font-size:14px;font-weight:700;color:{{ day.headFg }};">{{ day.label }}</span>
+                  <sc-if value="{{ day.isToday }}"><span style="font-size:10px;font-weight:700;color:#059669;background:#ecfdf5;padding:1px 6px;border-radius:5px;">TODAY</span></sc-if>
+                </div>
+                <div style="background:#fff;border:1px solid #efece9;border-radius:14px;padding:4px 14px;">
+                  <sc-for list="{{ day.events }}" as="ev">
+                    <div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid {{ ev.divider }};">
+                      <div style="flex:none;width:50px;font-size:12px;font-weight:600;color:#78716c;">{{ ev.time }}</div>
+                      <div style="flex:none;width:3px;align-self:stretch;border-radius:2px;background:{{ ev.dot }};"></div>
+                      <div style="flex:1;">
+                        <div style="font-size:14px;color:#1c1917;">{{ ev.title }}</div>
+                        <sc-if value="{{ ev.hasWho }}"><div style="font-size:11px;color:#a8a29e;margin-top:1px;">{{ ev.who }}</div></sc-if>
+                      </div>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ day.empty }}"><div style="padding:12px 0;color:#c7c2bc;font-size:13px;">Open evening</div></sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- MEALS -->
+        <sc-if value="{{ showMealsView }}">
+          <div style="animation:fadeIn .25s ease;">
+            <sc-if value="{{ hints }}"><div style="font-size:13px;color:#a8a29e;margin:0 4px 12px;line-height:1.5;">Plan dinners for the week, then push a night's ingredients straight onto the grocery list.</div></sc-if>
+            <sc-for list="{{ mealList }}" as="m" hint-placeholder-count="7">
+              <div style="background:#fff;border:1px solid #efece9;border-radius:15px;padding:14px;margin-bottom:10px;">
+                <div style="display:flex;align-items:baseline;gap:8px;">
+                  <span style="font-size:12px;font-weight:700;color:#059669;width:34px;">{{ m.day }}</span>
+                  <span style="font-size:11px;color:#c7c2bc;">{{ m.date }}</span>
+                </div>
+                <div style="font-size:16px;font-weight:600;color:{{ m.titleFg }};margin:6px 0 2px;">{{ m.dinner }}</div>
+                <sc-if value="{{ m.hasIngredients }}">
+                  <div style="font-size:12px;color:#a8a29e;line-height:1.5;">{{ m.ingredientText }}</div>
+                  <button onClick="{{ m.onAdd }}" style="margin-top:11px;padding:8px 13px;border:1px solid {{ m.btnBorder }};border-radius:10px;background:{{ m.btnBg }};color:{{ m.btnFg }};font-size:12px;font-weight:700;">{{ m.btnLabel }}</button>
+                </sc-if>
+                <sc-if value="{{ m.noCook }}"><div style="font-size:12px;color:#c7c2bc;font-style:italic;">{{ m.noCookNote }}</div></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ============ SHOP ============ -->
+    <sc-if value="{{ showShop }}">
+      <div style="animation:screenIn .3s ease;padding:14px 16px 90px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+          <input value="{{ newGrocery }}" onChange="{{ onNewGroceryChange }}" onKeyDown="{{ onNewGroceryKey }}" placeholder="Add an item…" style="flex:1;padding:11px 14px;border:1px solid #e7e5e4;border-radius:12px;background:#fff;font-size:14px;color:#1c1917;outline:none;">
+          <button onClick="{{ onAddGrocery }}" style="flex:none;width:44px;height:44px;border:none;border-radius:12px;background:#059669;color:#fff;font-size:22px;line-height:1;">+</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button onClick="{{ onRestock }}" style="flex:1;padding:9px 0;border:1px solid #e7e5e4;border-radius:11px;background:#fff;color:#57534e;font-size:12px;font-weight:600;">↻ Restock staples</button>
+          <button onClick="{{ onClearChecked }}" style="flex:1;padding:9px 0;border:1px solid #e7e5e4;border-radius:11px;background:#fff;color:#57534e;font-size:12px;font-weight:600;">Clear {{ groceryDone }} in cart</button>
+        </div>
+        <sc-for list="{{ groceryGroups }}" as="g" hint-placeholder-count="4">
+          <div style="margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin:0 4px 8px;">
+              <span style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;">{{ g.category }}</span>
+              <span style="font-size:11px;color:#c7c2bc;">{{ g.left }} left</span>
+            </div>
+            <div style="background:#fff;border:1px solid #efece9;border-radius:15px;overflow:hidden;">
+              <sc-for list="{{ g.items }}" as="it">
+                <button onClick="{{ it.onToggle }}" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;padding:12px 14px;border:none;border-bottom:1px solid {{ it.divider }};background:none;">
+                  <span style="flex:none;width:22px;height:22px;border-radius:7px;border:2px solid {{ it.boxBorder }};background:{{ it.boxBg }};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;">{{ it.check }}</span>
+                  <span style="flex:1;font-size:14px;color:{{ it.textFg }};text-decoration:{{ it.strike }};">{{ it.name }}</span>
+                  <sc-if value="{{ it.isStaple }}"><span style="flex:none;font-size:9px;font-weight:700;letter-spacing:.05em;color:#a8a29e;border:1px solid #e7e5e4;border-radius:5px;padding:1px 5px;">STAPLE</span></sc-if>
+                  <sc-if value="{{ it.hasQty }}"><span style="flex:none;font-size:12px;color:#a8a29e;">{{ it.qty }}</span></sc-if>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ groceryEmpty }}"><div style="text-align:center;padding:40px 20px;color:#c7c2bc;font-size:14px;">List is empty. Tap “Restock staples” to start the week.</div></sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ============ MORE ============ -->
+    <sc-if value="{{ showMore }}">
+      <div style="animation:screenIn .3s ease;padding:18px 16px 90px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">
+          <sc-for list="{{ moreItems }}" as="m" hint-placeholder-count="8">
+            <button onClick="{{ m.onOpen }}" style="text-align:left;background:#fff;border:1px solid #efece9;border-radius:16px;padding:16px 15px;min-height:96px;display:flex;flex-direction:column;justify-content:space-between;">
+              <div style="width:36px;height:36px;border-radius:10px;background:{{ m.iconBg }};display:flex;align-items:center;justify-content:center;font-size:18px;">{{ m.glyph }}</div>
+              <div>
+                <div style="font-size:14px;font-weight:600;color:#1c1917;">{{ m.label }}</div>
+                <div style="font-size:11px;color:#a8a29e;margin-top:1px;">{{ m.sub }}</div>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+        <div style="text-align:center;margin-top:26px;font-size:12px;color:#c7c2bc;">Homebase · self-hosted · v1 + roadmap preview</div>
+      </div>
+    </sc-if>
+
+    <!-- ============ TASKS ============ -->
+    <sc-if value="{{ showTasks }}">
+      <div style="animation:screenIn .3s ease;padding:16px 16px 90px;">
+        <sc-for list="{{ openTasks }}" as="t" hint-placeholder-count="5">
+          <div style="background:#fff;border:1px solid #efece9;border-radius:13px;padding:13px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">
+            <button onClick="{{ t.onToggle }}" style="flex:none;width:24px;height:24px;border-radius:50%;border:2px solid #d6d3d1;background:#fff;"></button>
+            <div style="flex:1;">
+              <div style="font-size:15px;color:#1c1917;">{{ t.title }}</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
+                <span style="font-size:11px;font-weight:600;color:#78716c;">{{ t.assignee }}</span>
+                <sc-if value="{{ t.hasDue }}"><span style="font-size:11px;font-weight:600;color:{{ t.dueFg }};">{{ t.dueLabel }}</span></sc-if>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ hasDoneTasks }}">
+          <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin:20px 4px 9px;">Recently done</div>
+          <sc-for list="{{ doneTasks }}" as="t">
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;opacity:.6;">
+              <button onClick="{{ t.onToggle }}" style="flex:none;width:24px;height:24px;border-radius:50%;border:none;background:#059669;color:#fff;font-size:13px;font-weight:800;">✓</button>
+              <div style="flex:1;font-size:14px;color:#78716c;text-decoration:line-through;">{{ t.title }}</div>
+            </div>
+          </sc-for>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ============ WISHLIST ============ -->
+    <sc-if value="{{ showWishlist }}">
+      <div style="animation:screenIn .3s ease;padding:16px 16px 90px;">
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+          <div style="flex:1;background:#ecfdf5;border:1px solid #d1fae5;border-radius:14px;padding:13px;">
+            <div style="font-size:11px;color:#059669;font-weight:600;">Committed</div>
+            <div style="font-size:22px;font-weight:800;color:#065f46;margin-top:2px;">{{ committedSpend }}</div>
+          </div>
+          <div style="flex:1;background:#fff;border:1px solid #efece9;border-radius:14px;padding:13px;">
+            <div style="font-size:11px;color:#a8a29e;font-weight:600;">Considering</div>
+            <div style="font-size:22px;font-weight:800;color:#57534e;margin-top:2px;">{{ consideringSpend }}</div>
+          </div>
+        </div>
+        <sc-for list="{{ wishList }}" as="w" hint-placeholder-count="6">
+          <div style="background:#fff;border:1px solid #efece9;border-radius:15px;padding:14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">
+              <div style="font-size:15px;font-weight:600;color:#1c1917;">{{ w.name }}</div>
+              <div style="font-size:15px;font-weight:700;color:#1c1917;white-space:nowrap;">{{ w.price }}</div>
+            </div>
+            <div style="font-size:11px;color:#a8a29e;margin-top:1px;">{{ w.room }}</div>
+            <div style="display:flex;gap:5px;margin-top:11px;">
+              <sc-for list="{{ w.stages }}" as="st">
+                <div style="flex:1;text-align:center;padding:5px 0;border-radius:7px;background:{{ st.bg }};color:{{ st.fg }};font-size:10px;font-weight:700;">{{ st.label }}</div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ w.canAdvance }}">
+              <button onClick="{{ w.onAdvance }}" style="width:100%;margin-top:9px;padding:8px 0;border:1px solid #d1fae5;border-radius:9px;background:#f0fdf4;color:#059669;font-size:12px;font-weight:700;">Move to {{ w.nextLabel }} →</button>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ============ HOME ASSISTANT ============ -->
+    <sc-if value="{{ showHA }}">
+      <div style="animation:screenIn .3s ease;padding:16px 16px 90px;">
+        <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin:0 4px 9px;">Temperatures</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:20px;">
+          <sc-for list="{{ haTemps }}" as="t" hint-placeholder-count="3">
+            <div style="background:#fff;border:1px solid #efece9;border-radius:14px;padding:13px 10px;text-align:center;">
+              <div style="font-size:23px;font-weight:800;color:#1c1917;">{{ t.label }}</div>
+              <div style="font-size:11px;color:#a8a29e;margin-top:2px;">{{ t.room }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin:0 4px 9px;">Climate</div>
+        <div style="background:#fff;border:1px solid #efece9;border-radius:16px;padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:600;color:#1c1917;">{{ thermName }}</div>
+            <div style="font-size:12px;color:#059669;font-weight:600;margin-top:2px;">{{ thermMode }}</div>
+          </div>
+          <button onClick="{{ thermDown }}" style="flex:none;width:38px;height:38px;border-radius:50%;border:1px solid #e7e5e4;background:#faf9f8;font-size:20px;color:#57534e;">−</button>
+          <div style="flex:none;width:56px;text-align:center;font-size:26px;font-weight:800;color:#1c1917;">{{ thermSet }}°</div>
+          <button onClick="{{ thermUp }}" style="flex:none;width:38px;height:38px;border-radius:50%;border:1px solid #e7e5e4;background:#faf9f8;font-size:20px;color:#57534e;">+</button>
+        </div>
+
+        <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin:0 4px 9px;">Locks & switches</div>
+        <div style="background:#fff;border:1px solid #efece9;border-radius:16px;overflow:hidden;">
+          <button onClick="{{ toggleLock }}" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;padding:14px;border:none;border-bottom:1px solid #f0ede9;background:none;">
+            <span style="flex:1;font-size:15px;color:#1c1917;">{{ lockName }}</span>
+            <span style="font-size:13px;font-weight:700;color:{{ lockFg }};">{{ lockLabel }}</span>
+            <span style="width:44px;height:26px;border-radius:14px;background:{{ lockToggleBg }};position:relative;flex:none;"><span style="position:absolute;top:3px;left:{{ lockKnob }};width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;"></span></span>
+          </button>
+          <sc-for list="{{ haSwitches }}" as="sw">
+            <button onClick="{{ sw.onToggle }}" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;padding:14px;border:none;border-bottom:1px solid {{ sw.divider }};background:none;">
+              <span style="flex:1;font-size:15px;color:#1c1917;">{{ sw.name }}</span>
+              <span style="width:44px;height:26px;border-radius:14px;background:{{ sw.bg }};position:relative;flex:none;"><span style="position:absolute;top:3px;left:{{ sw.knob }};width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;"></span></span>
+            </button>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hints }}"><div style="font-size:12px;color:#c7c2bc;margin:16px 4px 0;line-height:1.5;">Roadmap preview — tiles read from your Home Assistant instance once the base URL + token are set in Settings.</div></sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ============ NOTIFICATIONS ============ -->
+    <sc-if value="{{ showNotifications }}">
+      <div style="animation:screenIn .3s ease;padding:12px 16px 90px;">
+        <sc-if value="{{ hasUnread }}"><button onClick="{{ markAllRead }}" style="width:100%;padding:10px 0;margin-bottom:12px;border:1px solid #e7e5e4;border-radius:11px;background:#fff;color:#57534e;font-size:13px;font-weight:600;">Mark all as read</button></sc-if>
+        <sc-for list="{{ notifList }}" as="n" hint-placeholder-count="6">
+          <div style="display:flex;gap:12px;padding:13px 12px;border-radius:13px;background:{{ n.bg }};margin-bottom:6px;">
+            <span style="flex:none;width:9px;height:9px;border-radius:50%;background:{{ n.color }};margin-top:5px;"></span>
+            <div style="flex:1;">
+              <div style="font-size:14px;color:#1c1917;font-weight:{{ n.weight }};line-height:1.4;">{{ n.text }}</div>
+              <div style="font-size:11px;color:#a8a29e;margin-top:3px;">{{ n.time }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ============ INVENTORY ============ -->
+    <sc-if value="{{ showInventory }}">
+      <div style="animation:screenIn .3s ease;padding:16px 16px 90px;">
+        <sc-for list="{{ inventoryList }}" as="i" hint-placeholder-count="5">
+          <div style="background:#fff;border:1px solid #efece9;border-radius:14px;padding:14px;margin-bottom:9px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+              <div style="font-size:15px;font-weight:600;color:#1c1917;">{{ i.name }}</div>
+              <span style="font-size:11px;font-weight:700;color:{{ i.warrantyFg }};background:{{ i.warrantyBg }};padding:2px 8px;border-radius:6px;">{{ i.warranty }}</span>
+            </div>
+            <div style="font-size:13px;color:#78716c;margin-top:3px;">{{ i.brand }}</div>
+            <div style="font-size:11px;color:#a8a29e;margin-top:2px;">{{ i.room }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ============ DOCUMENTS ============ -->
+    <sc-if value="{{ showDocs }}">
+      <div style="animation:screenIn .3s ease;padding:16px 16px 90px;">
+        <div style="background:#fff;border:1px solid #efece9;border-radius:16px;overflow:hidden;">
+          <sc-for list="{{ docList }}" as="d" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:13px;padding:14px;border-bottom:1px solid {{ d.divider }};">
+              <div style="flex:none;width:38px;height:38px;border-radius:9px;background:#fef2f2;color:#dc2626;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;">{{ d.kind }}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;color:#1c1917;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ d.name }}</div>
+                <div style="font-size:11px;color:#a8a29e;margin-top:1px;">{{ d.meta }}</div>
+              </div>
+              <span style="flex:none;color:#c7c2bc;font-size:18px;">↓</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ CONTACTS ============ -->
+    <sc-if value="{{ showContacts }}">
+      <div style="animation:screenIn .3s ease;padding:16px 16px 90px;">
+        <sc-for list="{{ contactList }}" as="c" hint-placeholder-count="5">
+          <div style="background:#fff;border:1px solid #efece9;border-radius:14px;padding:14px;margin-bottom:9px;display:flex;align-items:center;gap:13px;">
+            <div style="flex:none;width:42px;height:42px;border-radius:50%;background:#f0ede9;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#78716c;">{{ c.initial }}</div>
+            <div style="flex:1;">
+              <div style="font-size:11px;font-weight:600;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;">{{ c.role }}</div>
+              <div style="font-size:15px;font-weight:600;color:#1c1917;">{{ c.name }}</div>
+              <div style="font-size:12px;color:#78716c;">{{ c.phone }}</div>
+            </div>
+            <div style="flex:none;width:40px;height:40px;border-radius:50%;background:#ecfdf5;display:flex;align-items:center;justify-content:center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2Z"/></svg>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ============ SETTINGS ============ -->
+    <sc-if value="{{ showSettings }}">
+      <div style="animation:screenIn .3s ease;padding:16px 16px 90px;">
+        <div style="background:#fff;border:1px solid #efece9;border-radius:16px;overflow:hidden;">
+          <sc-for list="{{ settingsRows }}" as="s" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:12px;padding:15px 14px;border-bottom:1px solid {{ s.divider }};">
+              <div style="flex:1;"><div style="font-size:14px;color:#1c1917;">{{ s.label }}</div><div style="font-size:12px;color:#a8a29e;margin-top:1px;">{{ s.sub }}</div></div>
+              <span style="font-size:12px;font-weight:600;color:#a8a29e;">{{ s.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:14px;font-size:12px;color:#c7c2bc;line-height:1.5;padding:0 4px;">Two fixed accounts, self-hosted on the apartment NAS behind Tailscale. Back up the <span style="font-family:ui-monospace,monospace;">/data</span> volume and you've backed up Homebase.</div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div style="flex:none;background:#fff;border-top:1px solid #efece9;padding:8px 4px 12px;display:flex;">
+    <button onClick="{{ goHome }}" style="flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:{{ navHome }};">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>
+      <span style="font-size:10px;font-weight:600;">Home</span>
+    </button>
+    <button onClick="{{ goUpkeep }}" style="flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:{{ navUpkeep }};">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+      <span style="font-size:10px;font-weight:600;">Upkeep</span>
+    </button>
+    <button onClick="{{ goPlan }}" style="flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:{{ navPlan }};">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
+      <span style="font-size:10px;font-weight:600;">Plan</span>
+    </button>
+    <button onClick="{{ goShop }}" style="flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:{{ navShop }};">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="20" r="1.3"/><circle cx="17.5" cy="20" r="1.3"/><path d="M3 4h2.2l2.4 11.5h10L20 7.5H6.3"/></svg>
+      <span style="font-size:10px;font-weight:600;">Shop</span>
+    </button>
+    <button onClick="{{ goMore }}" style="flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:{{ navMore }};">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>
+      <span style="font-size:10px;font-weight:600;">More</span>
+    </button>
+  </div>
+
+  <!-- UPKEEP DETAIL SHEET -->
+  <sc-if value="{{ showDetail }}">
+    <div onClick="{{ closeDetail }}" style="position:absolute;inset:0;z-index:40;background:rgba(28,25,23,.4);animation:fadeIn .2s ease both;"></div>
+    <div style="position:absolute;left:0;right:0;bottom:0;z-index:41;background:#faf9f8;border-radius:22px 22px 0 0;padding:8px 18px 26px;max-height:82%;overflow-y:auto;animation:sheetIn .3s cubic-bezier(.32,.72,0,1) both;">
+      <div style="width:38px;height:4px;border-radius:2px;background:#d6d3d1;margin:8px auto 16px;"></div>
+      <div style="font-family:'Instrument Serif',serif;font-size:26px;color:#1c1917;line-height:1.1;">{{ detailName }}</div>
+      <div style="display:flex;align-items:center;gap:7px;margin-top:8px;">
+        <span style="font-size:12px;font-weight:700;color:{{ detailBadgeFg }};background:{{ detailBadgeBg }};padding:3px 9px;border-radius:7px;">{{ detailBadge }}</span>
+        <span style="font-size:12px;color:#a8a29e;">every {{ detailInterval }} · {{ detailRoom }}</span>
+      </div>
+      <sc-if value="{{ detailHasNotes }}"><div style="font-size:14px;color:#57534e;margin-top:14px;line-height:1.5;background:#fff;border:1px solid #efece9;border-radius:12px;padding:12px 14px;">{{ detailNotes }}</div></sc-if>
+      <button onClick="{{ detailDone }}" style="width:100%;margin-top:16px;padding:14px 0;border:none;border-radius:13px;background:#059669;color:#fff;font-size:15px;font-weight:700;">Mark done as {{ userName }}</button>
+      <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin:22px 2px 10px;">History</div>
+      <sc-for list="{{ detailHistory }}" as="h" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #f0ede9;">
+          <div style="flex:none;width:8px;height:8px;border-radius:50%;background:#059669;"></div>
+          <div style="flex:1;font-size:14px;color:#1c1917;">{{ h.when }}</div>
+          <div style="font-size:12px;color:#a8a29e;">{{ h.who }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:430,&quot;height&quot;:880},&quot;homeAssistantEnabled&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Modules&quot;},&quot;showHints&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Modules&quot;},&quot;dashDefault&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Cards&quot;,&quot;Focus&quot;,&quot;Agenda&quot;],&quot;default&quot;:&quot;Cards&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Dashboard&quot;}}">
+const ORDER = ['Produce','Meat & Fish','Dairy & Eggs','Pantry','Frozen','Household'];
+const STAPLES = [
+  {name:'Bananas',category:'Produce'},{name:'Baby spinach',category:'Produce'},
+  {name:'Whole milk',category:'Dairy & Eggs'},{name:'Eggs',category:'Dairy & Eggs'},{name:'Greek yogurt',category:'Dairy & Eggs'},
+  {name:'Coffee beans',category:'Pantry'},{name:'Olive oil',category:'Pantry'},{name:'Sparkling water',category:'Pantry'},
+  {name:'Paper towels',category:'Household'},{name:'Trash bags',category:'Household'}
+];
+const TYPEC = {date:'#059669',upkeep:'#d97706',chore:'#a8a29e',event:'#0ea5e9'};
+const SUB = ['tasks','wishlist','inventory','docs','contacts','ha','notifications','settings'];
+const TITLES = {home:'Homebase',upkeep:'Upkeep',plan:'This week',shop:'Groceries',more:'More',tasks:'Tasks',wishlist:'Wishlist',inventory:'Inventory',docs:'Documents',contacts:'Contacts',ha:'Home',notifications:'Notifications',settings:'Settings'};
+
+class Component extends DCLogic {
+  state = {
+    screen:'home', prevScreen:'home', planTab:'week', dashVariant:null,
+    user:'Cullen', detailId:null, newGrocery:'', nextId:1000,
+    upkeep:[
+      {id:1,name:'Mini-split filters',intervalDays:42,intervalLabel:'6 weeks',room:'Living room',notes:'Pop the front panel, rinse both filters in the sink, let dry fully before reinserting.',daysUntil:2,history:[{when:'5 weeks ago',who:'Cullen'},{when:'11 weeks ago',who:'Steph'}]},
+      {id:2,name:'Smoke & CO detector test',intervalDays:30,intervalLabel:'month',room:'Hallway',notes:'Hold test button on each unit until it chirps twice.',daysUntil:-4,history:[{when:'5 weeks ago',who:'Cullen'}]},
+      {id:3,name:'Range hood filter',intervalDays:91,intervalLabel:'3 months',room:'Kitchen',notes:'Degreaser soak in hot water, air dry.',daysUntil:3,history:[{when:'3 months ago',who:'Steph'}]},
+      {id:4,name:'Descale coffee & kettle',intervalDays:122,intervalLabel:'4 months',room:'Kitchen',notes:'Half white vinegar, half water; run a cycle, then two water-only cycles.',daysUntil:-8,history:[{when:'4 months ago',who:'Cullen'}]},
+      {id:5,name:'Replace detector batteries',intervalDays:365,intervalLabel:'year',room:'Whole home',notes:'9V lithium in all four detectors.',daysUntil:5,history:[{when:'~1 year ago',who:'Cullen'}]},
+      {id:6,name:'Flush drain traps',intervalDays:91,intervalLabel:'3 months',room:'Bathroom',notes:'Boiling water + baking soda down each drain.',daysUntil:61,history:[{when:'1 month ago',who:'Cullen'}]},
+      {id:7,name:'Fridge water filter',intervalDays:182,intervalLabel:'6 months',room:'Kitchen',notes:'GE XWFE cartridge. Twist out, twist in, run 2 gallons through.',daysUntil:82,history:[{when:'3 months ago',who:'Steph'}]},
+      {id:8,name:'Mini-split pro service',intervalDays:365,intervalLabel:'year',room:'Living room',notes:'Call CoolAir NYC for annual coil clean + refrigerant check.',daysUntil:65,history:[{when:'10 months ago',who:'Cullen'}]}
+    ],
+    tasks:[
+      {id:1,title:'Mail co-op maintenance check',assignee:'Cullen',dueLabel:'2 days ago',overdue:true,done:false},
+      {id:2,title:'Call super about radiator knock',assignee:'Cullen',dueLabel:'Today',overdue:false,done:false},
+      {id:3,title:'Register washer warranty (LG)',assignee:'Steph',dueLabel:'',overdue:false,done:false},
+      {id:4,title:'Return Amazon package',assignee:'Anyone',dueLabel:'Fri',overdue:false,done:false},
+      {id:5,title:'Hang bedroom shelves',assignee:'Cullen',dueLabel:'Sat',overdue:false,done:false},
+      {id:6,title:'Schedule chimney inspection',assignee:'Steph',dueLabel:'',overdue:false,done:false},
+      {id:7,title:'Set up mesh wifi',assignee:'Cullen',dueLabel:'',overdue:false,done:true}
+    ],
+    grocery:[
+      {id:1,name:'Bananas',category:'Produce',qty:'',checked:true,staple:true},
+      {id:2,name:'Lemons',category:'Produce',qty:'3',checked:false,staple:false},
+      {id:3,name:'Broccoli',category:'Produce',qty:'1 head',checked:false,staple:false},
+      {id:4,name:'Avocados',category:'Produce',qty:'2',checked:false,staple:false},
+      {id:5,name:'Baby spinach',category:'Produce',qty:'',checked:false,staple:true},
+      {id:6,name:'Arugula',category:'Produce',qty:'1 bag',checked:false,staple:false},
+      {id:7,name:'Chicken thighs',category:'Meat & Fish',qty:'2 lb',checked:false,staple:false},
+      {id:8,name:'Ground beef',category:'Meat & Fish',qty:'1.5 lb',checked:false,staple:false},
+      {id:9,name:'Whole milk',category:'Dairy & Eggs',qty:'',checked:true,staple:true},
+      {id:10,name:'Eggs',category:'Dairy & Eggs',qty:'1 dozen',checked:true,staple:true},
+      {id:11,name:'Parmesan',category:'Dairy & Eggs',qty:'',checked:false,staple:false},
+      {id:12,name:'Greek yogurt',category:'Dairy & Eggs',qty:'',checked:false,staple:true},
+      {id:13,name:'Spaghetti',category:'Pantry',qty:'1 box',checked:false,staple:false},
+      {id:14,name:'Olive oil',category:'Pantry',qty:'',checked:false,staple:true},
+      {id:15,name:'Coffee beans',category:'Pantry',qty:'',checked:true,staple:true},
+      {id:16,name:'Canned tomatoes',category:'Pantry',qty:'2',checked:false,staple:false},
+      {id:17,name:'Sparkling water',category:'Pantry',qty:'1 case',checked:false,staple:true},
+      {id:18,name:'Frozen berries',category:'Frozen',qty:'',checked:false,staple:false},
+      {id:19,name:'Paper towels',category:'Household',qty:'',checked:false,staple:true},
+      {id:20,name:'Trash bags',category:'Household',qty:'',checked:false,staple:true}
+    ],
+    week:[
+      {short:'Mon',num:'29',label:'Monday',today:false,events:[{time:'8:00a',title:'Trash & recycling out',type:'chore',who:'Cullen'},{time:'6:30p',title:'Gym',type:'event',who:''}]},
+      {short:'Tue',num:'30',label:'Tuesday',today:false,events:[{time:'5:00p',title:'Grocery pickup — Union Market',type:'event',who:'Steph'},{time:'',title:'Water the plants',type:'chore',who:'Steph'}]},
+      {short:'Wed',num:'1',label:'Wednesday',today:false,events:[{time:'11:00a',title:'Super re: radiator knock',type:'event',who:''}]},
+      {short:'Thu',num:'2',label:'Thursday',today:true,events:[{time:'12:00p',title:'Change mini-split filter',type:'upkeep',who:''},{time:'7:30p',title:'Date night — dinner at Lot 2',type:'date',who:''}]},
+      {short:'Fri',num:'3',label:'Friday',today:false,events:[{time:'',title:'Laundry',type:'chore',who:'Steph'},{time:'8:00p',title:'Dinner w/ Sarah & Mike',type:'date',who:''}]},
+      {short:'Sat',num:'4',label:'Saturday',today:false,events:[{time:'10:00a',title:'Farmers market — Grand Army Plaza',type:'event',who:''},{time:'2:00p',title:'Hang bedroom shelves',type:'chore',who:'Cullen'}]},
+      {short:'Sun',num:'5',label:'Sunday',today:false,events:[{time:'4:00p',title:'Meal prep — batch chili',type:'chore',who:''},{time:'7:00p',title:'Building board meeting',type:'event',who:''}]}
+    ],
+    meals:[
+      {day:'Mon',date:'Jun 29',dinner:'Sheet-pan chicken & veg',cook:true,out:false,addedToList:false,ingredients:[{name:'Chicken thighs',category:'Meat & Fish',qty:'2 lb'},{name:'Broccoli',category:'Produce',qty:'1 head'},{name:'Baby potatoes',category:'Produce',qty:'1.5 lb'},{name:'Lemons',category:'Produce',qty:'2'}]},
+      {day:'Tue',date:'Jun 30',dinner:'Leftovers',cook:false,out:false,addedToList:false,ingredients:[]},
+      {day:'Wed',date:'Jul 1',dinner:'Pasta al limone',cook:true,out:false,addedToList:false,ingredients:[{name:'Spaghetti',category:'Pantry',qty:'1 box'},{name:'Parmesan',category:'Dairy & Eggs',qty:''},{name:'Lemons',category:'Produce',qty:'2'},{name:'Arugula',category:'Produce',qty:'1 bag'}]},
+      {day:'Thu',date:'Jul 2',dinner:'Date night — dinner out',cook:false,out:true,addedToList:false,ingredients:[]},
+      {day:'Fri',date:'Jul 3',dinner:'Taco night w/ Sarah & Mike',cook:true,out:false,addedToList:false,ingredients:[{name:'Ground beef',category:'Meat & Fish',qty:'1.5 lb'},{name:'Tortillas',category:'Pantry',qty:'2 packs'},{name:'Avocados',category:'Produce',qty:'3'},{name:'Cilantro',category:'Produce',qty:'1 bunch'},{name:'Limes',category:'Produce',qty:'4'},{name:'Cotija',category:'Dairy & Eggs',qty:''}]},
+      {day:'Sat',date:'Jul 4',dinner:'Farmers market veg bowls',cook:true,out:false,addedToList:false,ingredients:[{name:'Farro',category:'Pantry',qty:'1 bag'},{name:'Seasonal veg',category:'Produce',qty:''},{name:'Feta',category:'Dairy & Eggs',qty:''}]},
+      {day:'Sun',date:'Jul 5',dinner:'Batch chili (meal prep)',cook:true,out:false,addedToList:false,ingredients:[{name:'Ground turkey',category:'Meat & Fish',qty:'2 lb'},{name:'Canned tomatoes',category:'Pantry',qty:'3'},{name:'Kidney beans',category:'Pantry',qty:'2 cans'},{name:'Onions',category:'Produce',qty:'2'}]}
+    ],
+    wishlist:[
+      {id:1,name:'Walnut dining chairs (×4)',room:'Dining',price:780,status:'ordered'},
+      {id:2,name:'Sixpenny Aria sofa',room:'Living room',price:2400,status:'considering'},
+      {id:3,name:'Bedroom rug 8×10',room:'Bedroom',price:540,status:'decided'},
+      {id:4,name:'Arc floor lamp',room:'Living room',price:180,status:'delivered'},
+      {id:5,name:'Counter bar stools (×2)',room:'Kitchen',price:320,status:'considering'},
+      {id:6,name:'Blackout curtains',room:'Bedroom',price:140,status:'decided'}
+    ],
+    inventory:[
+      {name:'Mini-split heat pump',brand:'Mitsubishi MSZ-GL12NA',room:'Living room',warranty:'Nov 2030',active:true},
+      {name:'Gas range',brand:'GE Café CGS700',room:'Kitchen',warranty:'Mar 2027',active:true},
+      {name:'Dishwasher',brand:'Bosch 800 Series',room:'Kitchen',warranty:'Expired',active:false},
+      {name:'Washer / dryer',brand:'LG WashTower',room:'Utility',warranty:'Aug 2028',active:true},
+      {name:'Water heater',brand:'Rheem Performance 40gal',room:'Utility',warranty:'Jun 2032',active:true}
+    ],
+    contacts:[
+      {role:'Building super',name:'Miguel Torres',phone:'(718) 555-0142'},
+      {role:'Plumber',name:'Brooklyn Flow Plumbing',phone:'(718) 555-0199'},
+      {role:'HVAC',name:'CoolAir NYC',phone:'(347) 555-0110'},
+      {role:'Electrician',name:'Sparks & Co.',phone:'(718) 555-0177'},
+      {role:'Co-op management',name:'Park Slope Realty',phone:'(718) 555-0100'}
+    ],
+    docs:[
+      {name:'Closing disclosure.pdf',size:'1.2 MB',date:'Nov 2025',kind:'PDF'},
+      {name:'Home inspection report.pdf',size:'4.8 MB',date:'Oct 2025',kind:'PDF'},
+      {name:'Mini-split manual.pdf',size:'6.1 MB',date:'Nov 2025',kind:'PDF'},
+      {name:'Certificate of insurance.pdf',size:'320 KB',date:'Dec 2025',kind:'PDF'},
+      {name:'Range warranty.pdf',size:'210 KB',date:'Nov 2025',kind:'PDF'}
+    ],
+    haTemps:[{room:'Living room',val:71},{room:'Bedroom',val:69},{room:'Outdoor',val:78}],
+    therm:{name:'Mini-split — Living room',setpoint:71,mode:'Cooling to 71°'},
+    switches:[{id:'s1',name:'Living room lamp',on:true},{id:'s2',name:'Entryway light',on:false},{id:'s3',name:'Bedroom fan',on:false}],
+    lock:{name:'Front door',locked:true},
+    notifs:[
+      {id:'n1',color:'#dc2626',text:'Smoke & CO detector test is 4 days overdue',time:'2h ago',read:false},
+      {id:'n2',color:'#dc2626',text:'Descale coffee & kettle overdue by 8 days',time:'2h ago',read:false},
+      {id:'n3',color:'#d97706',text:'Mini-split filters due in 2 days',time:'This morning',read:false},
+      {id:'n4',color:'#0ea5e9',text:'Grocery pickup tomorrow at 5:00 PM',time:'This morning',read:false},
+      {id:'n5',color:'#059669',text:'Cullen completed “Flush drain traps”',time:'Mon',read:true},
+      {id:'n6',color:'#059669',text:'Steph moved “Walnut dining chairs” to Ordered',time:'Sun',read:true}
+    ]
+  };
+
+  // ---- helpers ----
+  upView(it){
+    const d=it.daysUntil; let badge,badgeBg,badgeFg,accent;
+    if(d<0){badge=(-d)+'d overdue';badgeBg='#fef2f2';badgeFg='#dc2626';accent='#dc2626';}
+    else if(d===0){badge='Due today';badgeBg='#fffbeb';badgeFg='#b45309';accent='#d97706';}
+    else if(d<=7){badge='Due in '+d+'d';badgeBg='#fffbeb';badgeFg='#b45309';accent='#d97706';}
+    else {badge='Due in '+d+'d';badgeBg='#f5f5f4';badgeFg='#78716c';accent='#d6d3d1';}
+    return {...it,badge,badgeBg,badgeFg,accent,soon:d<=7};
+  }
+  notify(text,color){this.setState(st=>({notifs:[{id:'n'+st.nextId,color,text,time:'Just now',read:false},...st.notifs],nextId:st.nextId+1}));}
+
+  // ---- mutations ----
+  doneUpkeep(id){
+    const item=this.state.upkeep.find(u=>u.id===id);
+    this.setState(st=>({upkeep:st.upkeep.map(u=>u.id===id?{...u,daysUntil:u.intervalDays,history:[{when:'Just now',who:st.user},...u.history]}:u)}));
+    if(item) this.notify(this.state.user+' completed “'+item.name+'”','#059669');
+    if(this.state.detailId===id) this.setState({detailId:null});
+  }
+  toggleTask(id){this.setState(st=>({tasks:st.tasks.map(t=>t.id===id?{...t,done:!t.done}:t)}));}
+  toggleGrocery(id){this.setState(st=>({grocery:st.grocery.map(g=>g.id===id?{...g,checked:!g.checked}:g)}));}
+  clearChecked(){this.setState(st=>({grocery:st.grocery.filter(g=>!g.checked)}));}
+  restock(){this.setState(st=>{
+    const have=new Set(st.grocery.map(g=>g.name.toLowerCase()));
+    let nid=st.nextId; const add=[];
+    STAPLES.forEach(s=>{if(!have.has(s.name.toLowerCase())){add.push({id:'g'+nid++,name:s.name,category:s.category,qty:'',checked:false,staple:true});}});
+    return {grocery:[...st.grocery,...add],nextId:nid};
+  });}
+  addGrocery(){
+    const name=this.state.newGrocery.trim(); if(!name) return;
+    this.setState(st=>({grocery:[...st.grocery,{id:'g'+st.nextId,name,category:'Pantry',qty:'',checked:false,staple:false}],nextId:st.nextId+1,newGrocery:''}));
+  }
+  addMeal(day){
+    const meal=this.state.meals.find(m=>m.day===day); if(!meal) return;
+    this.setState(st=>{
+      const have=new Set(st.grocery.map(g=>g.name.toLowerCase()));
+      let nid=st.nextId; const add=[];
+      meal.ingredients.forEach(ing=>{if(!have.has(ing.name.toLowerCase())){add.push({id:'g'+nid++,name:ing.name,category:ing.category,qty:ing.qty,checked:false,staple:false});}});
+      return {grocery:[...st.grocery,...add],meals:st.meals.map(m=>m.day===day?{...m,addedToList:true}:m),nextId:nid};
+    });
+    this.notify('Added ingredients for “'+meal.dinner+'” to the list','#059669');
+  }
+  advanceWish(id){
+    const order=['considering','decided','ordered','delivered'];
+    this.setState(st=>({wishlist:st.wishlist.map(w=>{if(w.id!==id)return w;const i=order.indexOf(w.status);return i<3?{...w,status:order[i+1]}:w;})}));
+  }
+  toggleSwitch(id){this.setState(st=>({switches:st.switches.map(s=>s.id===id?{...s,on:!s.on}:s)}));}
+  toggleLock(){this.setState(st=>({lock:{...st.lock,locked:!st.lock.locked}}));}
+  therm(delta){this.setState(st=>({therm:{...st.therm,setpoint:st.therm.setpoint+delta,mode:'Cooling to '+(st.therm.setpoint+delta)+'°'}}));}
+  markAllRead(){this.setState(st=>({notifs:st.notifs.map(n=>({...n,read:true}))}));}
+  cycleUser(){this.setState(st=>({user:st.user==='Cullen'?'Steph':'Cullen'}));}
+
+  // ---- nav ----
+  setTab(name){this.setState({screen:name});}
+  open(name){this.setState(st=>({prevScreen:st.screen,screen:name}));}
+  back(){this.setState(st=>({screen:SUB.indexOf(st.prevScreen)>=0?'more':st.prevScreen}));}
+
+  renderVals(){
+    const s=this.state;
+    const tab = SUB.indexOf(s.screen)>=0 ? 'more' : s.screen;
+    const active='#059669', idle='#a8a29e';
+    const variant = s.dashVariant || (this.props.dashDefault||'Cards').toLowerCase();
+    const haOn = this.props.homeAssistantEnabled!==false;
+    const hints = this.props.showHints!==false;
+
+    const upSorted=[...s.upkeep].sort((a,b)=>a.daysUntil-b.daysUntil).map(u=>this.upView(u));
+    const withHandlers=upSorted.map(u=>({...u,onDone:()=>this.doneUpkeep(u.id),onOpen:()=>this.setState({detailId:u.id})}));
+    const attention=withHandlers.filter(u=>u.soon);
+
+    // today (Thu index 3)
+    const today=s.week[3];
+    const todayEvents=today.events.map((e,i)=>({time:e.time||'—',title:e.title,dot:TYPEC[e.type],divider:i===today.events.length-1?'transparent':'#f0ede9'}));
+
+    // grocery grouping
+    const groups=ORDER.map(cat=>{
+      const items=s.grocery.filter(g=>g.category===cat);
+      return {category:cat,items,left:items.filter(g=>!g.checked).length,count:items.length};
+    }).filter(g=>g.count>0).map(g=>({
+      category:g.category,left:g.left,
+      items:g.items.map((it,i)=>({
+        name:it.name,qty:it.qty,hasQty:!!it.qty&&!it.checked,isStaple:it.staple&&!it.checked,
+        check:it.checked?'✓':'',boxBg:it.checked?'#059669':'#fff',boxBorder:it.checked?'#059669':'#d6d3d1',
+        textFg:it.checked?'#c7c2bc':'#1c1917',strike:it.checked?'line-through':'none',
+        divider:i===g.items.length-1?'transparent':'#f5f2ef',onToggle:()=>this.toggleGrocery(it.id)
+      }))
+    }));
+    const gDone=s.grocery.filter(g=>g.checked).length, gTotal=s.grocery.length, gLeft=gTotal-gDone;
+
+    // meals
+    const mealList=s.meals.map(m=>({
+      day:m.day,date:m.date,dinner:m.dinner,titleFg:m.out?'#a8a29e':'#1c1917',
+      hasIngredients:m.ingredients.length>0,noCook:m.ingredients.length===0,
+      noCookNote:m.out?'Reservation — nothing to buy':'Using leftovers',
+      ingredientText:m.ingredients.map(i=>i.name).join(' · '),
+      btnLabel:m.addedToList?'Added to list ✓':'Add ingredients to list',
+      btnBg:m.addedToList?'#ecfdf5':'#fff',btnFg:m.addedToList?'#059669':'#059669',btnBorder:m.addedToList?'#d1fae5':'#d1fae5',
+      onAdd:()=>this.addMeal(m.day)
+    }));
+
+    // week
+    const legend=[{c:TYPEC.date,label:'Date'},{c:TYPEC.event,label:'Event'},{c:TYPEC.chore,label:'Chore'},{c:TYPEC.upkeep,label:'Upkeep'}];
+    const weekStrip=s.week.map(d=>({
+      short:d.short,num:d.num,
+      bg:d.today?'#059669':'#fff',border:d.today?'#059669':'#efece9',
+      fg:d.today?'#fff':'#1c1917',fg2:d.today?'rgba(255,255,255,.8)':'#a8a29e',
+      dots:d.events.slice(0,3).map(e=>({c:d.today?'#fff':TYPEC[e.type]}))
+    }));
+    const weekDays=s.week.map(d=>({
+      label:d.label,isToday:d.today,headFg:d.today?'#059669':'#57534e',empty:d.events.length===0,
+      events:d.events.map((e,i)=>({time:e.time||'—',title:e.title,dot:TYPEC[e.type],who:e.who?('· '+e.who):'',hasWho:!!e.who,divider:i===d.events.length-1?'transparent':'#f0ede9'}))
+    }));
+
+    // wishlist
+    const order=['considering','decided','ordered','delivered'];
+    const lbl={considering:'Idea',decided:'Decided',ordered:'Ordered',delivered:'Got it'};
+    const committed=s.wishlist.filter(w=>w.status!=='considering').reduce((a,w)=>a+w.price,0);
+    const considering=s.wishlist.filter(w=>w.status==='considering').reduce((a,w)=>a+w.price,0);
+    const wishList=s.wishlist.map(w=>{
+      const ci=order.indexOf(w.status);
+      return {name:w.name,room:w.room,price:'$'+w.price.toLocaleString(),
+        canAdvance:ci<3,nextLabel:ci<3?lbl[order[ci+1]]:'',onAdvance:()=>this.advanceWish(w.id),
+        stages:order.map((o,i)=>({label:lbl[o],bg:i<ci?'#d1fae5':(i===ci?'#059669':'#f5f2ef'),fg:i===ci?'#fff':(i<ci?'#059669':'#c7c2bc')}))
+      };
+    });
+
+    // ha
+    const haTemps=s.haTemps.map(t=>({room:t.room,label:t.val+'°'}));
+    const haSwitches=s.switches.map((sw,i)=>({name:sw.name,bg:sw.on?'#059669':'#d6d3d1',knob:sw.on?'21px':'3px',divider:i===s.switches.length-1?'transparent':'#f0ede9',onToggle:()=>this.toggleSwitch(sw.id)}));
+
+    // tasks
+    const mkTask=t=>({title:t.title,assignee:t.assignee,dueLabel:t.dueLabel,hasDue:!!t.dueLabel,dueFg:t.overdue?'#dc2626':'#78716c',onToggle:()=>this.toggleTask(t.id)});
+    const openTasks=s.tasks.filter(t=>!t.done).map(mkTask);
+    const doneTasks=s.tasks.filter(t=>t.done).map(mkTask);
+
+    // notifs
+    const notifList=s.notifs.map(n=>({text:n.text,time:n.time,color:n.color,bg:n.read?'transparent':'#fff',weight:n.read?'400':'600'}));
+    const unread=s.notifs.filter(n=>!n.read).length;
+
+    // detail
+    const detail=s.upkeep.find(u=>u.id===s.detailId);
+    const dv=detail?this.upView(detail):null;
+
+    // more grid
+    const moreItems=[
+      {label:'Tasks',sub:openTasks.length+' open',glyph:'✓',iconBg:'#ecfdf5',onOpen:()=>this.open('tasks')},
+      {label:'Wishlist',sub:s.wishlist.length+' items',glyph:'✦',iconBg:'#fef3c7',onOpen:()=>this.open('wishlist')},
+      {label:'Notifications',sub:unread+' unread',glyph:'◉',iconBg:'#fee2e2',onOpen:()=>this.open('notifications')},
+      ...(haOn?[{label:'Home',sub:'Assistant tiles',glyph:'⌂',iconBg:'#dbeafe',onOpen:()=>this.open('ha')}]:[]),
+      {label:'Inventory',sub:s.inventory.length+' appliances',glyph:'▤',iconBg:'#f5f2ef',onOpen:()=>this.open('inventory')},
+      {label:'Documents',sub:s.docs.length+' files',glyph:'▦',iconBg:'#f5f2ef',onOpen:()=>this.open('docs')},
+      {label:'Contacts',sub:s.contacts.length+' vendors',glyph:'☏',iconBg:'#f5f2ef',onOpen:()=>this.open('contacts')},
+      {label:'Settings',sub:'2 accounts',glyph:'⚙',iconBg:'#f5f2ef',onOpen:()=>this.open('settings')}
+    ];
+
+    const inventoryList=s.inventory.map(i=>({name:i.name,brand:i.brand,room:i.room,warranty:i.active?('Warranty '+i.warranty):'Warranty expired',warrantyFg:i.active?'#059669':'#a8a29e',warrantyBg:i.active?'#ecfdf5':'#f5f2ef'}));
+    const docList=s.docs.map((d,i)=>({name:d.name,kind:d.kind,meta:d.size+' · added '+d.date,divider:i===s.docs.length-1?'transparent':'#f0ede9'}));
+    const contactList=s.contacts.map(c=>({role:c.role,name:c.name,phone:c.phone,initial:c.name[0]}));
+    const settingsRows=[
+      {label:'Active user',sub:'Attribution for completions',value:s.user,divider:'#f0ede9'},
+      {label:'Home Assistant',sub:'Base URL + access token',value:haOn?'Connected':'Off',divider:'#f0ede9'},
+      {label:'Notifications',sub:'Due-soon web push',value:'On',divider:'#f0ede9'},
+      {label:'Change password',sub:'Currently env-var only',value:'Roadmap',divider:'#f0ede9'},
+      {label:'Backup',sub:'/data volume',value:'Nightly',divider:'transparent'}
+    ];
+
+    const seg=(on)=>({bg:on?'#fff':'transparent',fg:on?'#059669':'#78716c',sh:on?'0 1px 3px rgba(0,0,0,.1)':'none'});
+    const vC=seg(variant==='cards'),vF=seg(variant==='focus'),vA=seg(variant==='agenda');
+    const pW=seg(s.planTab==='week'),pM=seg(s.planTab==='meals');
+
+    // agenda variant: merge today events + attention
+    const agendaItems=[
+      ...today.events.map(e=>({time:e.time||'All day',title:e.title,meta:e.who?('with '+e.who):(e.type==='date'?'Date night':e.type==='upkeep'?'Upkeep':'Event'),dot:TYPEC[e.type],actionable:false})),
+      ...attention.slice(0,3).map(u=>({time:'Due',title:u.name,meta:u.badge+' · '+u.room,dot:u.accent,actionable:true,onDone:u.onDone}))
+    ];
+
+    const subSub={upkeep:s.upkeep.length+' recurring items',plan:'Jun 29 – Jul 5',shop:gLeft+' left to buy',more:'Everything else',tasks:openTasks.length+' open',wishlist:'$'+committed.toLocaleString()+' committed',inventory:'Appliances & fixtures',docs:'Manuals & closing docs',contacts:'Tap to call',ha:'Roadmap preview',notifications:unread+' unread',settings:'Self-hosted'};
+
+    return {
+      // header
+      headerTitle:TITLES[s.screen],
+      headerSub:s.screen==='home'?'Park Slope · Thu, Jul 2':(subSub[s.screen]||''),
+      showBack:SUB.indexOf(s.screen)>=0,goBack:()=>this.back(),
+      userInitial:s.user[0],userName:s.user,userColor:s.user==='Cullen'?'#059669':'#0e7490',
+      cycleUser:()=>this.cycleUser(),openNotifs:()=>this.open('notifications'),
+      hasUnread:unread>0,unreadCount:unread,
+      // screens
+      showHome:s.screen==='home',showUpkeep:s.screen==='upkeep',showPlan:s.screen==='plan',showShop:s.screen==='shop',showMore:s.screen==='more',
+      showTasks:s.screen==='tasks',showWishlist:s.screen==='wishlist',showInventory:s.screen==='inventory',showDocs:s.screen==='docs',showContacts:s.screen==='contacts',showHA:s.screen==='ha',showNotifications:s.screen==='notifications',showSettings:s.screen==='settings',
+      // home
+      greeting:'Good evening, '+s.user,
+      homeSummary:attention.length+' need attention · '+openTasks.length+' open tasks',
+      dashCards:variant==='cards',dashFocus:variant==='focus',dashAgenda:variant==='agenda',
+      setCards:()=>this.setState({dashVariant:'cards'}),setFocus:()=>this.setState({dashVariant:'focus'}),setAgenda:()=>this.setState({dashVariant:'agenda'}),
+      vCardsBg:vC.bg,vCardsFg:vC.fg,vCardsSh:vC.sh,vFocusBg:vF.bg,vFocusFg:vF.fg,vFocusSh:vF.sh,vAgendaBg:vA.bg,vAgendaFg:vA.fg,vAgendaSh:vA.sh,
+      attention,todayEvents,noToday:todayEvents.length===0,
+      attentionCount:attention.length,openTaskCount:openTasks.length,todayCount:today.events.length,todayCount2:today.events.length,
+      agendaItems,
+      groceryRemaining:gLeft,groceryDone:gDone,groceryTotal:gTotal,groceryPct:(gTotal?Math.round(gDone/gTotal*100):0)+'%',
+      goShop:()=>this.setTab('shop'),goHA:()=>this.open('ha'),
+      haOn,haTemps,
+      lockBg:s.lock.locked?'#fff':'#fef2f2',lockBorder:s.lock.locked?'#efece9':'#fecaca',lockFg:s.lock.locked?'#059669':'#dc2626',lockLabel:s.lock.locked?'Locked':'Unlocked',lockName:s.lock.name,
+      thermLabel:s.therm.setpoint+'° cool',thermName:s.therm.name,thermMode:s.therm.mode,thermSet:s.therm.setpoint,
+      toggleLock:()=>this.toggleLock(),lockToggleBg:s.lock.locked?'#059669':'#d6d3d1',lockKnob:s.lock.locked?'21px':'3px',
+      thermUp:()=>this.therm(1),thermDown:()=>this.therm(-1),haSwitches,
+      // upkeep
+      upkeepList:withHandlers,hints,
+      // plan
+      planTab:s.planTab,setWeek:()=>this.setState({planTab:'week'}),setMeals:()=>this.setState({planTab:'meals'}),
+      pWeekBg:pW.bg,pWeekFg:pW.fg,pWeekSh:pW.sh,pMealsBg:pM.bg,pMealsFg:pM.fg,pMealsSh:pM.sh,
+      showWeekView:s.planTab==='week',showMealsView:s.planTab==='meals',
+      weekStrip,weekDays,legend,mealList,
+      // shop
+      newGrocery:s.newGrocery,onNewGroceryChange:e=>this.setState({newGrocery:e.target.value}),
+      onNewGroceryKey:e=>{if(e.key==='Enter')this.addGrocery();},onAddGrocery:()=>this.addGrocery(),
+      onRestock:()=>this.restock(),onClearChecked:()=>this.clearChecked(),
+      groceryGroups:groups,groceryEmpty:groups.length===0,
+      // more + sub
+      moreItems,openTasks,doneTasks,hasDoneTasks:doneTasks.length>0,
+      wishList,committedSpend:'$'+committed.toLocaleString(),consideringSpend:'$'+considering.toLocaleString(),
+      inventoryList,docList,contactList,settingsRows,notifList,markAllRead:()=>this.markAllRead(),
+      // detail sheet
+      showDetail:!!detail,closeDetail:()=>this.setState({detailId:null}),
+      detailName:detail?detail.name:'',detailBadge:dv?dv.badge:'',detailBadgeBg:dv?dv.badgeBg:'',detailBadgeFg:dv?dv.badgeFg:'',
+      detailInterval:detail?detail.intervalLabel:'',detailRoom:detail?detail.room:'',
+      detailNotes:detail?detail.notes:'',detailHasNotes:!!(detail&&detail.notes),
+      detailHistory:detail?detail.history:[],detailDone:()=>{if(detail)this.doneUpkeep(detail.id);},
+      // nav
+      navHome:tab==='home'?active:idle,navUpkeep:tab==='upkeep'?active:idle,navPlan:tab==='plan'?active:idle,navShop:tab==='shop'?active:idle,navMore:tab==='more'?active:idle,
+      goHome:()=>this.setTab('home'),goUpkeep:()=>this.setTab('upkeep'),goPlan:()=>this.setTab('plan'),goMore:()=>this.setTab('more')
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -4,7 +4,6 @@ import { IntervalField } from "@/components/interval-field";
 export default function NewMaintenancePage() {
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">New upkeep item</h1>
       <form
         action={createMaintenanceItem}
         className="space-y-4 rounded-xl bg-white p-4 shadow-sm"

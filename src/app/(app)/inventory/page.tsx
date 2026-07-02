@@ -28,8 +28,6 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">Inventory</h1>
-
       <details className="rounded-xl bg-white p-3 shadow-sm">
         <summary className="cursor-pointer font-medium text-emerald-700">
           + Add appliance / item

@@ -10,8 +10,7 @@ export default function MaintenancePage() {
   const items = listMaintenanceWithDue();
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Upkeep</h1>
+      <div className="flex items-center justify-end">
         <Link
           href="/maintenance/new"
           className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-semibold text-white"

@@ -19,7 +19,6 @@ export default async function MorePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">More</h1>
       <ul className="space-y-2">
         {links.map((l) => (
           <li key={l.href}>

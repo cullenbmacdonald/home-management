@@ -33,8 +33,7 @@ export default function WishlistPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-xl font-bold">Wishlist</h1>
+      <div className="flex items-baseline justify-end">
         <div className="text-xs text-stone-500">
           committed {formatMoney(committed)} · considering{" "}
           {formatMoney(considering)}
