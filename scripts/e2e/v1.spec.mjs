@@ -29,13 +29,15 @@ await page.waitForTimeout(800);
 await page.locator("details summary").click(); // completed tasks live in a collapsed section
 ok("task completes", await page.locator("li .line-through").first().isVisible());
 
-// maintenance: mark done
+// maintenance: mark done via bottom sheet + attribution shows in history
 await page.goto(base + "/maintenance");
-const before = await page.locator("li", { hasText: "smoke & CO" }).textContent();
-await page.locator("li", { hasText: "smoke & CO" }).getByRole("button", { name: /Done/ }).click();
+await page.locator('button:has-text("Test smoke & CO detectors")').first().click();
+await page.getByRole("button", { name: /Mark done as Cullen/ }).click();
 await page.waitForTimeout(800);
-const after = await page.locator("li", { hasText: "smoke & CO" }).textContent();
-ok("mark-done records completion", before.includes("last: never") && after.includes("by Cullen"));
+await page.locator('button:has-text("Test smoke & CO detectors")').first().click();
+const sheet = await page.locator('[role="dialog"]').textContent();
+ok("mark-done records completion attributed to Cullen", sheet.includes("Cullen") && sheet.includes("Today"));
+await page.locator('[aria-label="Close"]').click();
 
 // wishlist: add + status change
 await page.goto(base + "/wishlist");

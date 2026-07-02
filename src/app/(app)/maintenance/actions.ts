@@ -21,10 +21,12 @@ export async function createMaintenanceItem(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const intervalDays = Number(formData.get("intervalDays"));
   if (!name || !Number.isFinite(intervalDays) || intervalDays < 1) return;
+  const roomId = Number(formData.get("roomId"));
   db.insert(maintenanceItems)
     .values({
       name,
       intervalDays: Math.round(intervalDays),
+      roomId: Number.isFinite(roomId) && roomId > 0 ? roomId : null,
       notes: String(formData.get("notes") ?? "").trim() || null,
       startDate:
         String(formData.get("startDate") ?? "") ||
@@ -40,10 +42,12 @@ export async function updateMaintenanceItem(id: number, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const intervalDays = Number(formData.get("intervalDays"));
   if (!name || !Number.isFinite(intervalDays) || intervalDays < 1) return;
+  const roomId = Number(formData.get("roomId"));
   db.update(maintenanceItems)
     .set({
       name,
       intervalDays: Math.round(intervalDays),
+      roomId: Number.isFinite(roomId) && roomId > 0 ? roomId : null,
       notes: String(formData.get("notes") ?? "").trim() || null,
     })
     .where(eq(maintenanceItems.id, id))

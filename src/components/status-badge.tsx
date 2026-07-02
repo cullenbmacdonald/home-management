@@ -1,24 +1,31 @@
 import type { MaintenanceStatus } from "@/lib/maintenance";
-import { dueLabel } from "@/lib/format";
+import { dueBadgeLabel } from "@/lib/format";
 
 const styles: Record<MaintenanceStatus, string> = {
-  overdue: "bg-red-100 text-red-700",
-  "due-soon": "bg-amber-100 text-amber-700",
-  ok: "bg-stone-100 text-stone-500",
+  overdue: "bg-[#fef2f2] text-[#dc2626]",
+  "due-soon": "bg-[#fffbeb] text-[#b45309]",
+  ok: "bg-[#f5f5f4] text-[#78716c]",
 };
+
+const sizes = {
+  sm: "text-[11px] px-[7px] py-[2px] rounded-[6px]",
+  md: "text-[12px] px-[9px] py-[3px] rounded-[7px]",
+} as const;
 
 export function DueBadge({
   status,
   daysUntilDue,
+  size = "sm",
 }: {
   status: MaintenanceStatus;
   daysUntilDue: number;
+  size?: keyof typeof sizes;
 }) {
   return (
     <span
-      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[status]}`}
+      className={`inline-block font-bold ${sizes[size]} ${styles[status]}`}
     >
-      {dueLabel(daysUntilDue)}
+      {dueBadgeLabel(daysUntilDue)}
     </span>
   );
 }

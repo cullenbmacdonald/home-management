@@ -16,6 +16,13 @@ export function dueLabel(daysUntilDue: number): string {
   return `Due in ${daysUntilDue} days`;
 }
 
+/** Compact badge form used on upkeep rows/sheet: "3d overdue", "Due today", "Due in 3d". */
+export function dueBadgeLabel(daysUntilDue: number): string {
+  if (daysUntilDue < 0) return `${-daysUntilDue}d overdue`;
+  if (daysUntilDue === 0) return "Due today";
+  return `Due in ${daysUntilDue}d`;
+}
+
 export function formatMoney(n: number | null): string {
   if (n == null) return "—";
   return n.toLocaleString("en-US", {

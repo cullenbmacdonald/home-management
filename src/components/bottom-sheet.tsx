@@ -6,10 +6,13 @@ export function BottomSheet({
   open,
   onClose,
   children,
+  surface = "bg-white",
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  /** Tailwind bg class for the sheet panel (design uses #faf9f8 for upkeep). */
+  surface?: string;
 }) {
   if (!open) return null;
   return (
@@ -23,7 +26,7 @@ export function BottomSheet({
       <div
         role="dialog"
         aria-modal="true"
-        className="absolute inset-x-0 bottom-0 mx-auto max-h-[82%] max-w-[430px] overflow-y-auto rounded-t-[22px] bg-white px-[18px] pb-[26px] pt-2 [animation:sheetIn_0.25s_cubic-bezier(0.32,0.72,0,1)_both]"
+        className={`absolute inset-x-0 bottom-0 mx-auto max-h-[82%] max-w-[430px] overflow-y-auto rounded-t-[22px] px-[18px] pb-[26px] pt-2 [animation:sheetIn_0.25s_cubic-bezier(0.32,0.72,0,1)_both] ${surface}`}
       >
         <div className="mx-auto my-2 h-1 w-[38px] rounded-full bg-[#d6d3d1]" />
         {children}

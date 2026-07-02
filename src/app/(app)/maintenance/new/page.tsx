@@ -1,49 +1,64 @@
+import { asc } from "drizzle-orm";
+import { db } from "@/db";
+import { rooms } from "@/db/schema";
 import { createMaintenanceItem } from "../actions";
 import { IntervalField } from "@/components/interval-field";
 
+export const dynamic = "force-dynamic";
+
+const labelCls =
+  "block text-[12px] font-bold uppercase tracking-[0.06em] text-[#a8a29e]";
+const inputCls =
+  "mt-1.5 w-full rounded-xl border border-[#e7e5e4] bg-white px-3 py-2.5 text-[15px] text-[#1c1917] focus:border-[#059669] focus:outline-none";
+
 export default function NewMaintenancePage() {
+  const roomList = db.select().from(rooms).orderBy(asc(rooms.sortOrder)).all();
+
   return (
-    <div className="space-y-4">
-      <form
-        action={createMaintenanceItem}
-        className="space-y-4 rounded-xl bg-white p-4 shadow-sm"
+    <form
+      action={createMaintenanceItem}
+      className="space-y-4 rounded-[14px] border border-[#efece9] bg-white p-4"
+    >
+      <label className="block">
+        <span className={labelCls}>Name</span>
+        <input
+          name="name"
+          required
+          placeholder="e.g. Clean mini-split filters"
+          className={inputCls}
+        />
+      </label>
+      <IntervalField />
+      <label className="block">
+        <span className={labelCls}>Room</span>
+        <select name="roomId" defaultValue="" className={inputCls}>
+          <option value="">No room</option>
+          {roomList.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="block">
+        <span className={labelCls}>Start counting from</span>
+        <input
+          name="startDate"
+          type="date"
+          defaultValue={new Date().toISOString().slice(0, 10)}
+          className={inputCls}
+        />
+      </label>
+      <label className="block">
+        <span className={labelCls}>Notes</span>
+        <textarea name="notes" rows={3} className={inputCls} />
+      </label>
+      <button
+        type="submit"
+        className="w-full rounded-xl bg-[#059669] py-3 text-[15px] font-bold text-white active:bg-emerald-800"
       >
-        <label className="block">
-          <span className="text-sm font-medium text-stone-600">Name</span>
-          <input
-            name="name"
-            required
-            placeholder="e.g. Clean mini-split filters"
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2.5 focus:border-emerald-600 focus:outline-none"
-          />
-        </label>
-        <IntervalField />
-        <label className="block">
-          <span className="text-sm font-medium text-stone-600">
-            Start counting from
-          </span>
-          <input
-            name="startDate"
-            type="date"
-            defaultValue={new Date().toISOString().slice(0, 10)}
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2.5 focus:border-emerald-600 focus:outline-none"
-          />
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium text-stone-600">Notes</span>
-          <textarea
-            name="notes"
-            rows={3}
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2.5 focus:border-emerald-600 focus:outline-none"
-          />
-        </label>
-        <button
-          type="submit"
-          className="w-full rounded-lg bg-emerald-700 py-3 font-semibold text-white active:bg-emerald-800"
-        >
-          Create
-        </button>
-      </form>
-    </div>
+        Create
+      </button>
+    </form>
   );
 }

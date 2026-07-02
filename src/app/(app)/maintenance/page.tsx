@@ -1,50 +1,51 @@
 import Link from "next/link";
-import { listMaintenanceWithDue } from "@/lib/maintenance";
-import { formatDate, intervalLabel } from "@/lib/format";
-import { DueBadge } from "@/components/status-badge";
-import { MarkDoneButton } from "@/components/mark-done-button";
+import { listMaintenanceWithDue, getMaintenanceHistory } from "@/lib/maintenance";
+import { getCurrentUser } from "@/lib/auth";
+import { UpkeepList } from "@/components/upkeep-list";
+import type { UpkeepRow, HistoryEntry } from "@/components/upkeep-list";
 
 export const dynamic = "force-dynamic";
 
-export default function MaintenancePage() {
+export default async function MaintenancePage() {
   const items = listMaintenanceWithDue();
+  const user = await getCurrentUser();
+
+  const rows: UpkeepRow[] = items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    notes: item.notes,
+    intervalDays: item.intervalDays,
+    roomName: item.roomName,
+    daysUntilDue: item.daysUntilDue,
+    status: item.status,
+  }));
+
+  const histories: Record<number, HistoryEntry[]> = {};
+  for (const item of items) {
+    histories[item.id] = getMaintenanceHistory(item.id).map((h) => ({
+      id: h.id,
+      at: h.completedAt.toISOString(),
+      by: h.by,
+      byColor: h.byColor,
+      notes: h.notes,
+    }));
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end">
         <Link
           href="/maintenance/new"
-          className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-semibold text-white"
+          className="rounded-[10px] bg-[#059669] px-3 py-1.5 text-[13px] font-bold text-white"
         >
           + Add
         </Link>
       </div>
-      <ul className="space-y-2">
-        {items.map((item) => (
-          <li
-            key={item.id}
-            className="flex items-center gap-3 rounded-xl bg-white p-4 shadow-sm"
-          >
-            <Link href={`/maintenance/${item.id}`} className="min-w-0 flex-1">
-              <div className="font-medium">{item.name}</div>
-              <div className="mt-0.5 text-xs text-stone-500">
-                {intervalLabel(item.intervalDays)} · last:{" "}
-                {item.lastDone
-                  ? `${formatDate(item.lastDone)}${item.lastDoneBy ? ` by ${item.lastDoneBy}` : ""}`
-                  : "never"}
-              </div>
-              <div className="mt-1.5">
-                <DueBadge status={item.status} daysUntilDue={item.daysUntilDue} />
-              </div>
-            </Link>
-            <MarkDoneButton itemId={item.id} />
-          </li>
-        ))}
-        {items.length === 0 && (
-          <li className="rounded-xl bg-white p-6 text-center text-stone-500">
-            No maintenance items yet.
-          </li>
-        )}
-      </ul>
+      <UpkeepList
+        items={rows}
+        histories={histories}
+        userName={user?.displayName ?? "you"}
+      />
     </div>
   );
 }

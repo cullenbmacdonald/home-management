@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { maintenanceItems, maintenanceLogs, users } from "@/db/schema";
+import { maintenanceItems, maintenanceLogs, rooms, users } from "@/db/schema";
 
 export type MaintenanceStatus = "overdue" | "due-soon" | "ok";
 
@@ -9,6 +9,7 @@ export interface MaintenanceWithDue {
   name: string;
   notes: string | null;
   intervalDays: number;
+  roomName: string | null;
   active: boolean;
   lastDone: Date | null;
   lastDoneBy: string | null;
@@ -17,13 +18,47 @@ export interface MaintenanceWithDue {
   status: MaintenanceStatus;
 }
 
+export interface MaintenanceLogEntry {
+  id: number;
+  completedAt: Date;
+  by: string | null;
+  byColor: string | null;
+  notes: string | null;
+}
+
+/** Full completion history for one item, newest first. */
+export function getMaintenanceHistory(itemId: number): MaintenanceLogEntry[] {
+  return db
+    .select({
+      id: maintenanceLogs.id,
+      completedAt: maintenanceLogs.completedAt,
+      by: users.displayName,
+      byColor: users.accentColor,
+      notes: maintenanceLogs.notes,
+    })
+    .from(maintenanceLogs)
+    .leftJoin(users, eq(maintenanceLogs.completedById, users.id))
+    .where(eq(maintenanceLogs.itemId, itemId))
+    .orderBy(desc(maintenanceLogs.completedAt))
+    .all();
+}
+
 const DAY_MS = 86400_000;
 const DUE_SOON_DAYS = 7;
 
 export function listMaintenanceWithDue(): MaintenanceWithDue[] {
   const items = db
-    .select()
+    .select({
+      id: maintenanceItems.id,
+      name: maintenanceItems.name,
+      notes: maintenanceItems.notes,
+      intervalDays: maintenanceItems.intervalDays,
+      startDate: maintenanceItems.startDate,
+      active: maintenanceItems.active,
+      roomName: rooms.name,
+    })
     .from(maintenanceItems)
+    .leftJoin(rooms, eq(maintenanceItems.roomId, rooms.id))
     .where(eq(maintenanceItems.active, true))
     .all();
 
@@ -54,6 +89,7 @@ export function listMaintenanceWithDue(): MaintenanceWithDue[] {
       name: item.name,
       notes: item.notes,
       intervalDays: item.intervalDays,
+      roomName: item.roomName ?? null,
       active: item.active,
       lastDone: lastLog?.completedAt ?? null,
       lastDoneBy: lastLog?.by ?? null,

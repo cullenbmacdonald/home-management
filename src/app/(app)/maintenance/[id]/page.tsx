@@ -1,17 +1,18 @@
-import { desc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { maintenanceItems, maintenanceLogs, users } from "@/db/schema";
-import {
-  updateMaintenanceItem,
-  deactivateMaintenanceItem,
-} from "../actions";
+import { maintenanceItems, rooms } from "@/db/schema";
+import { updateMaintenanceItem, deactivateMaintenanceItem } from "../actions";
 import { IntervalField } from "@/components/interval-field";
-import { MarkDoneButton } from "@/components/mark-done-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function MaintenanceDetailPage({
+const labelCls =
+  "block text-[12px] font-bold uppercase tracking-[0.06em] text-[#a8a29e]";
+const inputCls =
+  "mt-1.5 w-full rounded-xl border border-[#e7e5e4] bg-white px-3 py-2.5 text-[15px] text-[#1c1917] focus:border-[#059669] focus:outline-none";
+
+export default async function MaintenanceEditPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -25,86 +26,62 @@ export default async function MaintenanceDetailPage({
     .get();
   if (!item) notFound();
 
-  const logs = db
-    .select({
-      id: maintenanceLogs.id,
-      completedAt: maintenanceLogs.completedAt,
-      notes: maintenanceLogs.notes,
-      by: users.displayName,
-    })
-    .from(maintenanceLogs)
-    .leftJoin(users, eq(maintenanceLogs.completedById, users.id))
-    .where(eq(maintenanceLogs.itemId, itemId))
-    .orderBy(desc(maintenanceLogs.completedAt))
-    .all();
-
+  const roomList = db.select().from(rooms).orderBy(asc(rooms.sortOrder)).all();
   const update = updateMaintenanceItem.bind(null, itemId);
   const deactivate = deactivateMaintenanceItem.bind(null, itemId);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">{item.name}</h1>
-        <MarkDoneButton itemId={itemId} />
-      </div>
-
-      <form action={update} className="space-y-4 rounded-xl bg-white p-4 shadow-sm">
+      <form
+        action={update}
+        className="space-y-4 rounded-[14px] border border-[#efece9] bg-white p-4"
+      >
         <label className="block">
-          <span className="text-sm font-medium text-stone-600">Name</span>
+          <span className={labelCls}>Name</span>
           <input
             name="name"
             defaultValue={item.name}
             required
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2.5 focus:border-emerald-600 focus:outline-none"
+            className={inputCls}
           />
         </label>
         <IntervalField defaultDays={item.intervalDays} />
         <label className="block">
-          <span className="text-sm font-medium text-stone-600">Notes</span>
+          <span className={labelCls}>Room</span>
+          <select
+            name="roomId"
+            defaultValue={item.roomId ?? ""}
+            className={inputCls}
+          >
+            <option value="">No room</option>
+            {roomList.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className={labelCls}>Notes</span>
           <textarea
             name="notes"
             rows={3}
             defaultValue={item.notes ?? ""}
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2.5 focus:border-emerald-600 focus:outline-none"
+            className={inputCls}
           />
         </label>
         <button
           type="submit"
-          className="w-full rounded-lg bg-emerald-700 py-2.5 font-semibold text-white active:bg-emerald-800"
+          className="w-full rounded-xl bg-[#059669] py-3 text-[15px] font-bold text-white active:bg-emerald-800"
         >
           Save changes
         </button>
       </form>
 
-      <section className="rounded-xl bg-white p-4 shadow-sm">
-        <h2 className="mb-2 font-semibold">History</h2>
-        {logs.length === 0 ? (
-          <p className="text-sm text-stone-500">Never done yet.</p>
-        ) : (
-          <ul className="divide-y divide-stone-100">
-            {logs.map((log) => (
-              <li key={log.id} className="py-2 text-sm">
-                <span className="font-medium">
-                  {log.completedAt.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </span>
-                {log.by && <span className="text-stone-500"> — {log.by}</span>}
-                {log.notes && (
-                  <div className="text-stone-500">{log.notes}</div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       <form action={deactivate}>
         <button
           type="submit"
-          className="w-full rounded-lg border border-red-200 py-2.5 text-sm font-medium text-red-600"
+          className="w-full rounded-xl border border-red-200 bg-white py-2.5 text-[13px] font-semibold text-[#dc2626]"
         >
           Archive this item
         </button>
