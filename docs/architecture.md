@@ -48,7 +48,9 @@ drizzle/         generated SQL migrations (checked in)
   They live in `src/components/`.
 - **Due-date logic**: next-due = last completion log's timestamp + interval
   (or item `startDate` when never done). Computed in `src/lib/maintenance.ts`,
-  never stored. Overdue < 0 days; due-soon ≤ 7 days.
+  never stored. Overdue < 0 days; due-soon within `min(7, ceil(interval/2))`
+  days — scaled so short-interval items don't sit in "needs attention"
+  permanently right after being completed.
 - **Schema changes**: edit `src/db/schema.ts` → `npm run db:generate` →
   commit the new file in `drizzle/`. Migrations apply automatically at boot
   (`src/db/index.ts`), so deploys are just "start the new image".

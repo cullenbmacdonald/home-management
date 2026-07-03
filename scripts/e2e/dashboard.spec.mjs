@@ -105,6 +105,23 @@ const logsAfter = db
   .get(overdueId).c;
 ok("D2 done creates maintenance log", logsAfter === logsBefore + 1);
 
+// --- D2b: short-interval (weekly) item leaves the dashboard when done ---
+// Regression: a flat 7-day due-soon window kept interval<=7d items in
+// "needs attention" forever, since done => next due <= 7 days away.
+db.prepare(
+  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES (?,?,?,1)",
+).run("E2E Weekly Chore", 7, isoDaysAgo(8));
+await page.reload();
+await page.waitForTimeout(400);
+const weeklyCard = page.locator("li", { hasText: "E2E Weekly Chore" });
+ok("D2b weekly overdue card shows", (await weeklyCard.count()) === 1);
+await weeklyCard.getByRole("button", { name: /Done/ }).click();
+await page.waitForTimeout(700);
+ok(
+  "D2b weekly card leaves after done",
+  (await page.locator("li", { hasText: "E2E Weekly Chore" }).count()) === 0,
+);
+
 // --- D3: today's events render (time + title) ---
 db.prepare(
   "INSERT INTO events (date, time, title, type) VALUES (?,?,?,?)",

@@ -44,7 +44,13 @@ export function getMaintenanceHistory(itemId: number): MaintenanceLogEntry[] {
 }
 
 const DAY_MS = 86400_000;
-const DUE_SOON_DAYS = 7;
+
+// "Due soon" window scales with the interval: a flat 7 days would keep any
+// item with interval <= 7 days permanently in "needs attention", since
+// completing it puts next-due right back inside the window.
+export function dueSoonWindowDays(intervalDays: number): number {
+  return Math.min(7, Math.ceil(intervalDays / 2));
+}
 
 export function listMaintenanceWithDue(): MaintenanceWithDue[] {
   const items = db
@@ -82,7 +88,11 @@ export function listMaintenanceWithDue(): MaintenanceWithDue[] {
     const nextDue = new Date(anchor.getTime() + item.intervalDays * DAY_MS);
     const daysUntilDue = Math.ceil((nextDue.getTime() - now.getTime()) / DAY_MS);
     const status: MaintenanceStatus =
-      daysUntilDue < 0 ? "overdue" : daysUntilDue <= DUE_SOON_DAYS ? "due-soon" : "ok";
+      daysUntilDue < 0
+        ? "overdue"
+        : daysUntilDue <= dueSoonWindowDays(item.intervalDays)
+          ? "due-soon"
+          : "ok";
 
     return {
       id: item.id,
