@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { DesktopActions } from "@/components/desktop-actions";
 
 /** The five primary tabs never show a back chevron. */
 const PRIMARY_TABS = ["/", "/maintenance", "/plan", "/groceries", "/more"];
@@ -75,11 +76,12 @@ export function AppHeader({
           </div>
         )}
       </div>
+      <DesktopActions />
       <Link
         href="/settings"
         aria-label="Settings"
         title={user?.displayName ?? "Account"}
-        className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full text-[13px] font-bold text-white"
+        className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full text-[13px] font-bold text-white xl:hidden"
         style={{ background: accent }}
       >
         {initial}

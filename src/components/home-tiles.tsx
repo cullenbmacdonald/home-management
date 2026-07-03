@@ -12,7 +12,7 @@ export async function HomeTiles() {
 
   return (
     <section>
-      <h2 className="mx-1 mb-[9px] mt-[22px] text-[12px] font-bold uppercase tracking-[0.06em] text-[#a8a29e]">
+      <h2 className="mx-1 mb-[9px] text-[12px] font-bold uppercase tracking-[0.06em] text-[#a8a29e]">
         Home
       </h2>
       {configured ? (

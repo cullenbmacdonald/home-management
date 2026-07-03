@@ -54,6 +54,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      <div className="grid gap-[18px] md:grid-cols-2 xl:grid-cols-3 [&>section]:mt-0">
       {/* Needs attention */}
       <section>
         <div className="mx-1 mb-[9px] flex items-baseline justify-between">
@@ -171,6 +172,7 @@ export default async function DashboardPage() {
       </section>
 
       <HomeTiles />
+      </div>
     </div>
   );
 }
