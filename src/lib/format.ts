@@ -8,14 +8,6 @@ export function formatDate(d: Date | string | null | undefined): string {
   });
 }
 
-export function dueLabel(daysUntilDue: number): string {
-  if (daysUntilDue < -1) return `${-daysUntilDue} days overdue`;
-  if (daysUntilDue === -1) return "1 day overdue";
-  if (daysUntilDue === 0) return "Due today";
-  if (daysUntilDue === 1) return "Due tomorrow";
-  return `Due in ${daysUntilDue} days`;
-}
-
 /** Compact badge form used on upkeep rows/sheet: "3d overdue", "Due today", "Due in 3d". */
 export function dueBadgeLabel(daysUntilDue: number): string {
   if (daysUntilDue < 0) return `${-daysUntilDue}d overdue`;

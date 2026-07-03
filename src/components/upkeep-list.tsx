@@ -103,7 +103,7 @@ export function UpkeepList({
               type="button"
               onClick={() => done(item.id)}
               disabled={pending}
-              className="flex-none rounded-[10px] bg-[#059669] px-[13px] py-2 text-[13px] font-bold text-white active:bg-emerald-800 disabled:opacity-50"
+              className="flex min-h-[44px] flex-none items-center justify-center rounded-[10px] bg-[#059669] px-[13px] py-2 text-[13px] font-bold text-white active:bg-emerald-800 disabled:opacity-50"
             >
               Done
             </button>

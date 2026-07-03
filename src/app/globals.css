@@ -18,3 +18,25 @@
     transform: translateY(0);
   }
 }
+
+/* Subtle fade + slide on route change (see PageTransition). */
+@keyframes routeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.route-transition {
+  animation: routeIn 0.28s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-transition {
+    animation: none;
+  }
+}

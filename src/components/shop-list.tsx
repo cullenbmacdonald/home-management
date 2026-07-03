@@ -196,7 +196,7 @@ export function ShopList({ items }: { items: ShopRow[] }) {
       })}
 
       {items.length === 0 && (
-        <div className="px-5 py-10 text-center text-[14px] text-[#c7c2bc]">
+        <div className="rounded-[14px] border border-[#efece9] bg-white p-6 text-center text-[#a8a29e]">
           List is empty. Tap “Restock staples” to start the week.
         </div>
       )}

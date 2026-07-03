@@ -4,6 +4,24 @@ Source of truth: `docs/design_handoff_homebase/` (README + `Homebase.dc.html`
 prototype markup). This plan turns the hi-fi design into the existing
 Next.js/Drizzle/Tailwind codebase.
 
+## Status — all phases complete ✅
+
+| Phase | Scope | Status |
+|---|---|---|
+| 1 | Design system + chrome | ✅ done |
+| 2 | Schema migration + seeds | ✅ done |
+| 3 | Upkeep restyle + bottom sheet | ✅ done |
+| 4 | Shop (groceries) | ✅ done |
+| 5 | Plan (Week + Meals) | ✅ done |
+| 6 | Dashboard (Cards) | ✅ done |
+| 7 | More grid + module restyles | ✅ done |
+| 8 | Notifications | ✅ done |
+| 9 | Home Assistant + Settings | ✅ done |
+| 10 | Polish + full regression | ✅ done |
+
+Every `docs/ux-checklist.md` item is checked off with its phase + guarding
+spec. Full Playwright suite green; `npm run build` and `tsc --noEmit` clean.
+
 ## Product decisions (assumed — flag if wrong)
 
 Asked, no answer yet; proceeding with the handoff's recommendations:

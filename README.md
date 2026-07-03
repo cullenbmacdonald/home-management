@@ -1,7 +1,24 @@
 # Homebase
 
-Home management app for our apartment: recurring maintenance, shared tasks,
-furniture wishlist, appliance inventory, documents, and contacts.
+Home management app for our apartment (Park Slope, two people). A mobile-first
+(430px) PWA with a sticky serif header and five tabs: Home, Upkeep, Plan, Shop,
+More.
+
+Features:
+
+- **Dashboard** — needs-attention upkeep (overdue/due-soon), today's events,
+  grocery progress, and live Home Assistant tiles.
+- **Upkeep** — recurring maintenance with computed due dates, one-tap Done, a
+  bottom-sheet detail with completion history.
+- **Plan** — a Week view (7-day strip, per-day event cards, derived upkeep
+  entries) and a Meals view that pushes a dinner's ingredients to the shop list.
+- **Shop** — aisle-grouped grocery list, quick-add, staples restock, clear-in-cart.
+- **More** — Tasks, Wishlist (spend pipeline), Inventory (warranties),
+  Documents (upload/download), Contacts (tap-to-call).
+- **Home Assistant** — temperature tiles, thermostat ± , lock and switch
+  toggles, all proxied server-side.
+- **Notifications** — daily due sweep + completion/wishlist events, bell badge.
+- **Settings** — account, password change, Home Assistant connection.
 
 ## Stack
 
@@ -19,11 +36,29 @@ npm run dev        # http://localhost:3000
 
 The database is created, migrated, and seeded automatically on first run
 (`data/homebase.db`). Default logins: `cullen` / `changeme` and
-`partner` / `changeme` — override with `USER1_*` / `USER2_*` env vars before
+`steph` / `changeme` — override with `USER1_*` / `USER2_*` env vars before
 first boot.
 
 Schema changes: edit `src/db/schema.ts`, then `npm run db:generate` to create a
 migration (applied automatically at startup).
+
+Load rich demo data (groceries, meals, events, notifications) for local dev:
+
+```bash
+npm run seed:demo
+```
+
+End-to-end tests (Playwright) live in `scripts/e2e/`. Run the server on :3777
+against a fresh DB, then:
+
+```bash
+rm -rf data && PORT=3777 npm start &   # wait for boot
+npm run e2e
+```
+
+Home Assistant behaviors are tested against an in-memory mock (no real HA
+needed); the suite covers global chrome, every module, and the v1 regression
+guarantees.
 
 ## Self-hosting
 

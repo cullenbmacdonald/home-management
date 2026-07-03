@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
+import { PageTransition } from "@/components/page-transition";
 import { runDueSweepIfDue, unreadCount } from "@/lib/notifications";
 
 export default async function AppLayout({
@@ -17,7 +18,7 @@ export default async function AppLayout({
         unreadCount={unread}
       />
       <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-[90px] pt-[18px]">
-        {children}
+        <PageTransition>{children}</PageTransition>
       </main>
       <BottomNav />
     </div>

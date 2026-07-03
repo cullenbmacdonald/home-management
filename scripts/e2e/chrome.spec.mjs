@@ -23,6 +23,37 @@ const bg = await page.evaluate(
 );
 ok("G9 body light background (#e7e5e4)", bg === "rgb(231, 229, 228)");
 
+// G7 — fonts: Hanken Grotesk on body, Instrument Serif on a header serif title.
+const bodyFont = await page.evaluate(
+  () => getComputedStyle(document.body).fontFamily,
+);
+ok("G7 body uses Hanken Grotesk", /Hanken Grotesk/.test(bodyFont));
+const titleFont = await page.evaluate(() => {
+  const el = document.querySelector("header .font-serif");
+  return el ? getComputedStyle(el).fontFamily : "";
+});
+ok("G7 header title uses Instrument Serif", /Instrument Serif/.test(titleFont));
+
+// G8 — primary tap targets ≥ 44px: nav tabs, upkeep Done buttons. (Header icon
+// buttons are 32–34px by design per the prototype — accepted deviation, not tested.)
+const navMin = await page.evaluate(() => {
+  const els = [...document.querySelectorAll("nav a")];
+  return Math.min(...els.map((e) => e.getBoundingClientRect().height));
+});
+ok(`G8 nav tab height ≥ 44px (${navMin})`, navMin >= 44);
+await page.goto(base + "/maintenance");
+await page.waitForSelector("text=Done");
+const doneMin = await page.evaluate(() => {
+  const els = [...document.querySelectorAll("button")].filter(
+    (b) => b.textContent?.trim() === "Done",
+  );
+  return els.length
+    ? Math.min(...els.map((e) => e.getBoundingClientRect().height))
+    : 0;
+});
+ok(`G8 upkeep Done button height ≥ 44px (${doneMin})`, doneMin >= 44);
+await page.goto(base + "/");
+
 // G5 — bottom tab bar: 5 tabs with correct hrefs, active state on current tab.
 const hrefs = await page.$$eval("nav a", (els) =>
   els.map((e) => new URL(e.href).pathname),

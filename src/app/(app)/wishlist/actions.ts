@@ -34,16 +34,6 @@ export async function createWishlistItem(formData: FormData) {
   revalidatePath("/wishlist");
 }
 
-export async function setWishlistStatus(id: number, status: string) {
-  await requireUser();
-  if (!STATUSES.includes(status as Status)) return;
-  db.update(wishlistItems)
-    .set({ status: status as Status })
-    .where(eq(wishlistItems.id, id))
-    .run();
-  revalidatePath("/wishlist");
-}
-
 export async function advanceWishlistItem(id: number) {
   const user = await requireUser();
   const item = db.select().from(wishlistItems).where(eq(wishlistItems.id, id)).get();

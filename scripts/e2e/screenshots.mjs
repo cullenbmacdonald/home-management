@@ -20,7 +20,8 @@ await page.waitForURL(base + "/");
 const screens = [
   ["/", "dashboard"],
   ["/maintenance", "upkeep"],
-  ["/plan", "plan"],
+  ["/plan", "plan-week"],
+  ["/plan?tab=meals", "plan-meals"],
   ["/groceries", "shop"],
   ["/more", "more"],
   ["/tasks", "tasks"],
@@ -28,6 +29,8 @@ const screens = [
   ["/inventory", "inventory"],
   ["/documents", "documents"],
   ["/vendors", "contacts"],
+  ["/notifications", "notifications"],
+  ["/home", "home"],
   ["/settings", "settings"],
 ];
 for (const [path, name] of screens) {
