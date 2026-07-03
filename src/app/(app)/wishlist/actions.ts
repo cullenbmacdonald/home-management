@@ -36,6 +36,19 @@ export async function setWishlistStatus(id: number, status: string) {
   revalidatePath("/wishlist");
 }
 
+export async function advanceWishlistItem(id: number) {
+  await requireUser();
+  const item = db.select().from(wishlistItems).where(eq(wishlistItems.id, id)).get();
+  if (!item) return;
+  const i = STATUSES.indexOf(item.status as Status);
+  if (i < 0 || i >= STATUSES.length - 1) return;
+  db.update(wishlistItems)
+    .set({ status: STATUSES[i + 1] })
+    .where(eq(wishlistItems.id, id))
+    .run();
+  revalidatePath("/wishlist");
+}
+
 export async function deleteWishlistItem(id: number) {
   await requireUser();
   db.delete(wishlistItems).where(eq(wishlistItems.id, id)).run();

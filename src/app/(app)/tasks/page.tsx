@@ -6,6 +6,9 @@ import { TaskRow } from "@/components/task-row";
 
 export const dynamic = "force-dynamic";
 
+const inputCls =
+  "w-full rounded-[10px] border border-[#e7e5e4] bg-white px-3 py-2.5 text-[14px] text-[#1c1917] placeholder:text-[#a8a29e] focus:border-[#059669] focus:outline-none";
+
 export default function TasksPage() {
   const allUsers = db.select().from(users).all();
   const userMap = new Map(allUsers.map((u) => [u.id, u.displayName]));
@@ -28,19 +31,14 @@ export default function TasksPage() {
     <div className="space-y-4">
       <form
         action={createTask}
-        className="space-y-2 rounded-xl bg-white p-3 shadow-sm"
+        className="space-y-2 rounded-[14px] border border-[#efece9] bg-white p-3"
       >
-        <input
-          name="title"
-          required
-          placeholder="Add a task…"
-          className="w-full rounded-lg border border-stone-300 px-3 py-2.5 focus:border-emerald-600 focus:outline-none"
-        />
+        <input name="title" required placeholder="Add a task…" className={inputCls} />
         <div className="flex gap-2">
           <select
             name="assigneeId"
-            className="flex-1 rounded-lg border border-stone-300 bg-white px-2 py-2 text-sm"
             defaultValue=""
+            className="flex-1 rounded-[10px] border border-[#e7e5e4] bg-white px-2 py-2 text-[13px]"
           >
             <option value="">Anyone</option>
             {allUsers.map((u) => (
@@ -52,18 +50,18 @@ export default function TasksPage() {
           <input
             name="dueDate"
             type="date"
-            className="flex-1 rounded-lg border border-stone-300 px-2 py-2 text-sm"
+            className="flex-1 rounded-[10px] border border-[#e7e5e4] px-2 py-2 text-[13px]"
           />
           <button
             type="submit"
-            className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white"
+            className="rounded-[10px] bg-[#059669] px-4 py-2 text-[13px] font-bold text-white active:bg-emerald-800"
           >
             Add
           </button>
         </div>
       </form>
 
-      <ul className="space-y-2">
+      <ul className="space-y-[8px]">
         {open.map((t) => (
           <TaskRow
             key={t.id}
@@ -71,18 +69,18 @@ export default function TasksPage() {
           />
         ))}
         {open.length === 0 && (
-          <li className="rounded-xl bg-white p-6 text-center text-stone-500">
+          <li className="rounded-[14px] border border-[#efece9] bg-white p-6 text-center text-[#a8a29e]">
             Nothing to do. Nice.
           </li>
         )}
       </ul>
 
       {done.length > 0 && (
-        <details className="rounded-xl bg-white p-4 shadow-sm">
-          <summary className="cursor-pointer text-sm font-medium text-stone-500">
-            Recently completed ({done.length})
+        <details className="rounded-[14px] border border-[#efece9] bg-white p-4">
+          <summary className="cursor-pointer text-[12px] font-bold uppercase tracking-[0.06em] text-[#a8a29e]">
+            Recently done ({done.length})
           </summary>
-          <ul className="mt-2 space-y-2">
+          <ul className="mt-2 space-y-[8px]">
             {done.map((t) => (
               <TaskRow
                 key={t.id}

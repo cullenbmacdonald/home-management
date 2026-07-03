@@ -58,13 +58,13 @@ Specs live in `scripts/e2e/`; run with a fresh DB via `npm run e2e`.
 - [ ] S7 New items land in a sensible aisle (category picker or default) and can be deleted
 
 ## More + sub-modules
-- [ ] O1 2-col tile grid with live sub-counts (open tasks, wishlist active, unread, etc.)
-- [ ] O2 Tasks: v1 behaviors (add/assign/due/complete/uncomplete/delete) in new skin; overdue due red
-- [ ] O3 Wishlist: committed vs considering spend cards correct
-- [ ] O4 Wishlist: "Move to {next} →" advances pipeline one stage (Idea→Decided→Ordered→Got it)
-- [ ] O5 Inventory: warranty chip green when active, muted when expired; add/delete work
-- [ ] O6 Documents: upload, list with size/date, download, delete
-- [ ] O7 Contacts: role + name + tap-to-call link; add/delete
+- [x] O1 2-col tile grid with live sub-counts (open tasks, wishlist active, unread, etc.) — Phase 7, more.spec
+- [x] O2 Tasks: v1 behaviors (add/assign/due/complete/uncomplete/delete) in new skin; overdue due red — Phase 7, more.spec (+ v1.spec)
+- [x] O3 Wishlist: committed vs considering spend cards correct — Phase 7, more.spec
+- [x] O4 Wishlist: "Move to {next} →" advances pipeline one stage (Idea→Decided→Ordered→Got it) — Phase 7, more.spec
+- [x] O5 Inventory: warranty chip green when active, muted when expired; add/delete work — Phase 7, more.spec
+- [x] O6 Documents: upload, list with size/date, download, delete — Phase 7, more.spec (+ v1.spec)
+- [x] O7 Contacts: role + name + tap-to-call link; add/delete — Phase 7, more.spec (+ v1.spec)
 
 ## Notifications
 - [ ] N1 Overdue/due-soon sweep creates notifications (once per item per day)

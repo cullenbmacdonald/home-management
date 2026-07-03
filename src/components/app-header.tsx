@@ -17,6 +17,8 @@ const EXACT: Record<string, Chrome> = {
   "/groceries": { title: "Shop", subtitle: "This week's list" },
   "/more": { title: "More", subtitle: "Everything else" },
   "/settings": { title: "Settings" },
+  "/notifications": { title: "Notifications", subtitle: "Recent activity" },
+  "/home": { title: "Home", subtitle: "Home Assistant" },
   "/tasks": { title: "Tasks" },
   "/wishlist": { title: "Wishlist" },
   "/inventory": { title: "Inventory" },

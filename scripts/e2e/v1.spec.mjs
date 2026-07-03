@@ -47,9 +47,15 @@ await page.selectOption('select[name="roomId"]', { label: "Living Room" });
 await page.locator('form button[type="submit"]').click();
 await page.waitForTimeout(800);
 ok("wishlist item appears", await page.getByText("Sofa").first().isVisible());
-await page.getByRole("button", { name: "ordered" }).click();
+// Advance out of "Idea" (considering) so it counts toward committed spend.
+// Assert the delta (other specs may have committed items already).
+const money = (s) => Number((s || "").replace(/[^0-9.]/g, "")) || 0;
+const committedBefore = money(await page.locator('[data-stat="committed"]').textContent());
+const sofaCard = page.locator('li:has-text("Sofa")').first();
+await sofaCard.getByRole("button", { name: /Move to Decided/ }).click();
 await page.waitForTimeout(800);
-ok("spend total updates", (await page.textContent("body")).includes("committed $2,400"));
+const committedAfter = money(await page.locator('[data-stat="committed"]').textContent());
+ok("spend total updates", committedAfter === committedBefore + 2400);
 
 // inventory add
 await page.goto(base + "/inventory");
@@ -67,10 +73,11 @@ await page.fill('input[name="name"]', "Joe the Plumber");
 await page.fill('input[name="phone"]', "718-555-0123");
 await page.locator('form button[type="submit"]').click();
 await page.waitForTimeout(800);
-ok("vendor appears with tel link", await page.locator('a[href="tel:718-555-0123"]').isVisible());
+ok("vendor appears with tel link", await page.locator('a[href="tel:718-555-0123"]').first().isVisible());
 
 // document upload
 await page.goto(base + "/documents");
+await page.fill('input[name="title"]', "Furnace manual");
 await page.setInputFiles('input[type="file"]', {
   name: "manual.pdf",
   mimeType: "application/pdf",
@@ -78,12 +85,16 @@ await page.setInputFiles('input[type="file"]', {
 });
 await page.locator('form button[type="submit"]').click();
 await page.waitForTimeout(800);
-ok("document listed", await page.getByText("manual.pdf").isVisible());
-const dl = await page.request.get(base + "/api/documents/1");
+ok("document listed", await page.getByText("Furnace manual").isVisible());
+const docHref = await page
+  .locator('a[href^="/api/documents/"]')
+  .first()
+  .getAttribute("href");
+const dl = await page.request.get(base + docHref);
 ok("document downloads", dl.ok() && (await dl.text()).startsWith("%PDF"));
 
-// logout
-await page.goto(base + "/more");
+// logout (moved fully to Settings in Phase 7)
+await page.goto(base + "/settings");
 await page.getByRole("button", { name: /Sign out/ }).click();
 await page.waitForURL("**/login");
 ok("logout returns to login", true);
