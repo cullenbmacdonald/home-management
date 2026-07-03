@@ -20,7 +20,7 @@ Specs live in `scripts/e2e/`; run with a fresh DB via `npm run e2e`.
 - [x] D2 One-tap Done on a needs-attention card removes it and logs completion — Phase 6, dashboard.spec
 - [x] D3 Today section lists today's events (time · colored bar · title) — Phase 6, dashboard.spec
 - [x] D4 Grocery progress bar shows checked/total, navigates to Shop — Phase 6, dashboard.spec
-- [~] D5 HA tiles show temps/lock/climate when configured; setup prompt when not — Phase 6 renders setup prompt (unconfigured, dashboard.spec); live tiles land in Phase 9
+- [x] D5 HA tiles show temps/lock/climate when configured; setup prompt when not — Phase 9 live tiles (temps + lock + climate summary), ha.spec H3; setup prompt when unconfigured, dashboard.spec
 - [x] D6 Empty state: all caught up message when nothing needs attention — Phase 6, dashboard.spec
 
 ## Upkeep
@@ -73,13 +73,13 @@ Specs live in `scripts/e2e/`; run with a fresh DB via `npm run e2e`.
 - [x] N4 "Mark all as read" clears badge and de-emphasizes rows (Phase 8, notifications.spec N4)
 
 ## Home (HA) + Settings
-- [ ] H1 Unconfigured: Home screen + dashboard tiles show setup prompt
-- [ ] H2 Settings saves HA base URL + token (token never echoed to client)
-- [ ] H3 Temp tiles render live values from HA states (mock HA in e2e)
-- [ ] H4 Thermostat ± adjusts setpoint via HA service call
-- [ ] H5 Lock and switch toggles call HA and reflect new state
-- [ ] H6 HA unreachable → error/stale chip, page still renders
-- [ ] H7 Settings: password change works (login with new password)
+- [x] H1 Unconfigured: Home screen + dashboard tiles show setup prompt — Phase 9, ha.spec
+- [x] H2 Settings saves HA base URL + token (token never echoed to client) — Phase 9, ha.spec
+- [x] H3 Temp tiles render live values from HA states (mock HA in e2e) — Phase 9, ha.spec
+- [x] H4 Thermostat ± adjusts setpoint via HA service call — Phase 9, ha.spec
+- [x] H5 Lock and switch toggles call HA and reflect new state — Phase 9, ha.spec
+- [x] H6 HA unreachable → error/stale chip, page still renders — Phase 9, ha.spec
+- [x] H7 Settings: password change works (login with new password) — Phase 9, ha.spec
 
 ## Regression (v1 guarantees kept)
 - [ ] R1 Full v1 e2e suite still passes (login, logout, auth-gating, uploads)
