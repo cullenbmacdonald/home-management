@@ -16,12 +16,12 @@ Specs live in `scripts/e2e/`; run with a fresh DB via `npm run e2e`.
 - [ ] G9 Light theme forced — no dark-mode inversion in a dark-mode browser
 
 ## Dashboard (Cards)
-- [ ] D1 Needs-attention card per upkeep item due ≤7d/overdue; left border red (overdue) or amber (due-soon)
-- [ ] D2 One-tap Done on a needs-attention card removes it and logs completion
-- [ ] D3 Today section lists today's events (time · colored bar · title)
-- [ ] D4 Grocery progress bar shows checked/total, navigates to Shop
-- [ ] D5 HA tiles show temps/lock/climate when configured; setup prompt when not
-- [ ] D6 Empty state: all caught up message when nothing needs attention
+- [x] D1 Needs-attention card per upkeep item due ≤7d/overdue; left border red (overdue) or amber (due-soon) — Phase 6, dashboard.spec
+- [x] D2 One-tap Done on a needs-attention card removes it and logs completion — Phase 6, dashboard.spec
+- [x] D3 Today section lists today's events (time · colored bar · title) — Phase 6, dashboard.spec
+- [x] D4 Grocery progress bar shows checked/total, navigates to Shop — Phase 6, dashboard.spec
+- [~] D5 HA tiles show temps/lock/climate when configured; setup prompt when not — Phase 6 renders setup prompt (unconfigured, dashboard.spec); live tiles land in Phase 9
+- [x] D6 Empty state: all caught up message when nothing needs attention — Phase 6, dashboard.spec
 
 ## Upkeep
 - [ ] U1 List sorted soonest-due first
