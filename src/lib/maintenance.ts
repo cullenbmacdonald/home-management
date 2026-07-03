@@ -45,11 +45,13 @@ export function getMaintenanceHistory(itemId: number): MaintenanceLogEntry[] {
 
 const DAY_MS = 86400_000;
 
-// "Due soon" window scales with the interval: a flat 7 days would keep any
-// item with interval <= 7 days permanently in "needs attention", since
-// completing it puts next-due right back inside the window.
+// "Due soon" means within a week, but the window must stay strictly below the
+// interval: completing an item puts its next-due ~intervalDays away, so a
+// window >= interval would keep the item in "needs attention" forever. A flat
+// 7 broke interval <= 7 items; capping at interval - 1 fixes that (including
+// daily items, where ceil(interval/2) still landed on the boundary).
 export function dueSoonWindowDays(intervalDays: number): number {
-  return Math.min(7, Math.ceil(intervalDays / 2));
+  return Math.min(7, intervalDays - 1);
 }
 
 export function listMaintenanceWithDue(): MaintenanceWithDue[] {

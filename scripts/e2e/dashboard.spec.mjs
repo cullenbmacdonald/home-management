@@ -122,6 +122,23 @@ ok(
   (await page.locator("li", { hasText: "E2E Weekly Chore" }).count()) === 0,
 );
 
+// --- D2c: daily (interval=1) item leaves the dashboard when done ---
+// Regression: ceil(interval/2) window == 1 for daily items, so done => next
+// due 1 day away stayed inside the window. Window is now interval - 1.
+db.prepare(
+  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES (?,?,?,1)",
+).run("E2E Daily Chore", 1, isoDaysAgo(2));
+await page.reload();
+await page.waitForTimeout(400);
+const dailyCard = page.locator("li", { hasText: "E2E Daily Chore" });
+ok("D2c daily overdue card shows", (await dailyCard.count()) === 1);
+await dailyCard.getByRole("button", { name: /Done/ }).click();
+await page.waitForTimeout(700);
+ok(
+  "D2c daily card leaves after done",
+  (await page.locator("li", { hasText: "E2E Daily Chore" }).count()) === 0,
+);
+
 // --- D3: today's events render (time + title) ---
 db.prepare(
   "INSERT INTO events (date, time, title, type) VALUES (?,?,?,?)",
