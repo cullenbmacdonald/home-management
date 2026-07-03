@@ -8,7 +8,7 @@ Specs live in `scripts/e2e/`; run with a fresh DB via `npm run e2e`.
 - [ ] G1 Sticky translucent header with serif title + muted subtitle 👁
 - [ ] G2 Back chevron appears on sub-screens only, navigates back
 - [ ] G3 Avatar shows logged-in user's initial in their accent color (Cullen emerald, Steph cyan); taps to Settings
-- [ ] G4 Bell shows red unread-count badge when notifications unread; none when zero
+- [x] G4 Bell shows red unread-count badge when notifications unread; none when zero (Phase 8, notifications.spec N4 + 9+ cap)
 - [ ] G5 Bottom tab bar: Home · Upkeep · Plan · Shop · More; active tab emerald, idle stone 👁
 - [ ] G6 App column max 430px, 100dvh, content clears tab bar 👁
 - [ ] G7 Hanken Grotesk body + Instrument Serif display render (no system-font fallback) 👁
@@ -67,10 +67,10 @@ Specs live in `scripts/e2e/`; run with a fresh DB via `npm run e2e`.
 - [x] O7 Contacts: role + name + tap-to-call link; add/delete — Phase 7, more.spec (+ v1.spec)
 
 ## Notifications
-- [ ] N1 Overdue/due-soon sweep creates notifications (once per item per day)
-- [ ] N2 Completions and wishlist stage moves create success notifications
-- [ ] N3 Feed: severity dot color, unread rows emphasized, relative time
-- [ ] N4 "Mark all as read" clears badge and de-emphasizes rows
+- [x] N1 Overdue/due-soon sweep creates notifications (once per item per day) (Phase 8, notifications.spec N1)
+- [x] N2 Completions and wishlist stage moves create success notifications (Phase 8, notifications.spec N2)
+- [x] N3 Feed: severity dot color, unread rows emphasized, relative time (Phase 8, notifications.spec N3)
+- [x] N4 "Mark all as read" clears badge and de-emphasizes rows (Phase 8, notifications.spec N4)
 
 ## Home (HA) + Settings
 - [ ] H1 Unconfigured: Home screen + dashboard tiles show setup prompt

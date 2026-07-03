@@ -40,8 +40,10 @@ function resolve(pathname: string): Chrome {
 
 export function AppHeader({
   user,
+  unreadCount = 0,
 }: {
   user: { displayName: string; accentColor: string } | null;
+  unreadCount?: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -49,7 +51,7 @@ export function AppHeader({
   const showBack = !PRIMARY_TABS.includes(pathname);
   const initial = (user?.displayName ?? "?").charAt(0).toUpperCase();
   const accent = user?.accentColor ?? "#059669";
-  const unread = 0;
+  const unread = unreadCount;
 
   return (
     <header className="sticky top-0 z-20 flex flex-none items-center gap-[11px] border-b border-[#efece9] bg-[rgba(250,249,248,0.94)] px-4 py-[13px] backdrop-blur-[10px]">
@@ -82,8 +84,8 @@ export function AppHeader({
       >
         {initial}
       </Link>
-      <button
-        type="button"
+      <Link
+        href="/notifications"
         aria-label="Notifications"
         className="relative flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full border border-[#e7e5e4] bg-white"
       >
@@ -101,11 +103,14 @@ export function AppHeader({
           <path d="M13.7 21a2 2 0 0 1-3.4 0" />
         </svg>
         {unread > 0 && (
-          <span className="absolute -right-[3px] -top-[3px] flex h-[17px] min-w-[17px] items-center justify-center rounded-[9px] border-2 border-[#faf9f8] bg-[#dc2626] px-1 text-[10px] font-bold text-white">
-            {unread}
+          <span
+            data-unread-badge
+            className="absolute -right-[3px] -top-[3px] flex h-[17px] min-w-[17px] items-center justify-center rounded-[9px] border-2 border-[#faf9f8] bg-[#dc2626] px-1 text-[10px] font-bold text-white"
+          >
+            {unread > 9 ? "9+" : unread}
           </span>
         )}
-      </button>
+      </Link>
     </header>
   );
 }

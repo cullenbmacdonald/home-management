@@ -6,12 +6,24 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { maintenanceItems, maintenanceLogs } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
+import { createNotification } from "@/lib/notifications";
 
 export async function markDone(itemId: number, notes?: string) {
   const user = await requireUser();
   db.insert(maintenanceLogs)
     .values({ itemId, completedById: user.id, notes: notes || null })
     .run();
+  const item = db
+    .select({ name: maintenanceItems.name })
+    .from(maintenanceItems)
+    .where(eq(maintenanceItems.id, itemId))
+    .get();
+  if (item) {
+    createNotification(
+      "success",
+      `${user.displayName} completed “${item.name}”`,
+    );
+  }
   revalidatePath("/maintenance");
   revalidatePath("/");
 }
