@@ -7,12 +7,13 @@ import { formatTime24, toYMD } from "@/lib/week";
 export type EventType = "date" | "event" | "chore" | "upkeep";
 
 export interface DerivedEvent {
-  id: number | null; // null = derived upkeep (not deletable)
+  id: number | null; // null = derived upkeep (not deletable/editable)
   time: string | null;
   timeLabel: string;
   title: string;
   type: EventType;
   who: string | null;
+  assigneeId: number | null;
 }
 
 /**
@@ -36,6 +37,7 @@ export function buildEventsByDate(
       title: events.title,
       type: events.type,
       who: users.displayName,
+      assigneeId: events.assigneeId,
     })
     .from(events)
     .leftJoin(users, eq(events.assigneeId, users.id))
@@ -50,6 +52,7 @@ export function buildEventsByDate(
       title: e.title,
       type: e.type,
       who: e.who,
+      assigneeId: e.assigneeId,
     });
   }
 
@@ -63,6 +66,7 @@ export function buildEventsByDate(
       title: m.name,
       type: "upkeep",
       who: null,
+      assigneeId: null,
     });
   }
 

@@ -13,7 +13,7 @@ const EXACT: Record<string, Chrome> = {
   "/": { title: "Home" },
   "/maintenance": { title: "Upkeep", subtitle: "Recurring home care" },
   "/maintenance/new": { title: "New item", subtitle: "Upkeep" },
-  "/plan": { title: "Plan", subtitle: "Your week" },
+  "/plan": { title: "Plan", subtitle: "Calendar & meals" },
   "/groceries": { title: "Shop", subtitle: "This week's list" },
   "/more": { title: "More", subtitle: "Everything else" },
   "/settings": { title: "Settings" },

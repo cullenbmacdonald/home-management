@@ -1,7 +1,12 @@
 import { inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { meals, mealIngredients, users } from "@/db/schema";
-import { getWeekDays } from "@/lib/week";
+import {
+  getWeekDays,
+  getMonthGrid,
+  parseMonthParam,
+  toYMD,
+} from "@/lib/week";
 import { buildEventsByDate } from "@/lib/plan-data";
 import {
   PlanView,
@@ -14,18 +19,38 @@ export const dynamic = "force-dynamic";
 export default async function PlanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; month?: string; day?: string }>;
 }) {
   const sp = await searchParams;
-  const tab = sp.tab === "meals" ? "meals" : "week";
+  const tab = sp.tab === "meals" ? "meals" : "calendar";
 
-  const week = getWeekDays(new Date());
+  const today = new Date();
+  const todayKey = toYMD(today);
+
+  // Month calendar: which month to show, and its full grid of day keys.
+  const parsed = parseMonthParam(sp.month) ?? {
+    year: today.getFullYear(),
+    monthIndex: today.getMonth(),
+  };
+  const grid = getMonthGrid(parsed.year, parsed.monthIndex, today);
+  const monthKeys = grid.cells.map((c) => c.date);
+
+  // Selected day: explicit ?day=, else today (if in view), else 1st of month.
+  const firstInMonth = grid.cells.find((c) => c.inMonth)!.date;
+  const selectedDay =
+    sp.day && monthKeys.includes(sp.day)
+      ? sp.day
+      : monthKeys.includes(todayKey)
+        ? todayKey
+        : firstInMonth;
+
+  // Overdue upkeep lands on today only when today is on screen.
+  const overdueKey = monthKeys.includes(todayKey) ? todayKey : firstInMonth;
+  const eventsByDate = buildEventsByDate(monthKeys, overdueKey);
+
+  // Meals tab stays on the current week.
+  const week = getWeekDays(today);
   const keys = week.map((d) => d.date);
-  const todayKey = week.find((d) => d.isToday)?.date ?? keys[0];
-
-  const eventsByDate = buildEventsByDate(keys, todayKey);
-
-  // Meals for the week + their ingredients.
   const mealRows = db.select().from(meals).where(inArray(meals.date, keys)).all();
   const ingRows = mealRows.length
     ? db
@@ -62,6 +87,8 @@ export default async function PlanPage({
   return (
     <PlanView
       tab={tab}
+      grid={grid}
+      selectedDay={selectedDay}
       week={week}
       eventsByDate={eventsByDate}
       mealsByDate={mealsByDate}

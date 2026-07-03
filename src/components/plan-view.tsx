@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { WeekDay } from "@/lib/week";
+import type { WeekDay, MonthGrid } from "@/lib/week";
 import type { GroceryCategory } from "@/db/schema";
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/groceries";
 import { BottomSheet } from "@/components/bottom-sheet";
 import {
   createEvent,
+  updateEvent,
   deleteEvent,
   createMeal,
   addMealIngredientsToList,
@@ -17,12 +18,13 @@ import {
 export type EventType = "date" | "event" | "chore" | "upkeep";
 
 export interface PlanEvent {
-  id: number | null; // null = derived upkeep (not deletable)
+  id: number | null; // null = derived upkeep (not deletable/editable)
   time: string | null;
   timeLabel: string;
   title: string;
   type: EventType;
   who: string | null;
+  assigneeId: number | null;
 }
 
 export interface MealVM {
@@ -56,12 +58,16 @@ const LEGEND: { type: EventType; label: string }[] = [
 
 export function PlanView({
   tab,
+  grid,
+  selectedDay,
   week,
   eventsByDate,
   mealsByDate,
   users,
 }: {
-  tab: "week" | "meals";
+  tab: "calendar" | "meals";
+  grid: MonthGrid;
+  selectedDay: string;
   week: WeekDay[];
   eventsByDate: Record<string, PlanEvent[]>;
   mealsByDate: Record<string, MealVM | undefined>;
@@ -69,14 +75,14 @@ export function PlanView({
 }) {
   const router = useRouter();
 
-  const setTab = (t: "week" | "meals") =>
+  const setTab = (t: "calendar" | "meals") =>
     router.push(`/plan?tab=${t}`, { scroll: false });
 
   return (
     <div>
       {/* Segmented control */}
       <div className="mb-4 flex gap-1 rounded-[12px] border border-[#e7e5e4] bg-[#f0ede9] p-1">
-        {(["week", "meals"] as const).map((t) => {
+        {(["calendar", "meals"] as const).map((t) => {
           const active = tab === t;
           return (
             <button
@@ -95,8 +101,13 @@ export function PlanView({
         })}
       </div>
 
-      {tab === "week" ? (
-        <WeekTab week={week} eventsByDate={eventsByDate} users={users} />
+      {tab === "calendar" ? (
+        <CalendarTab
+          grid={grid}
+          selectedDay={selectedDay}
+          eventsByDate={eventsByDate}
+          users={users}
+        />
       ) : (
         <MealsTab week={week} mealsByDate={mealsByDate} />
       )}
@@ -104,64 +115,116 @@ export function PlanView({
   );
 }
 
-/* ---------------- Week tab ---------------- */
+/* ---------------- Calendar tab ---------------- */
 
-function WeekTab({
-  week,
+const WEEKDAY_HEADS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** "2026-07-03" -> "Thursday, Jul 3" (parsed as local, no UTC shift). */
+function formatDayLong(dateKey: string): string {
+  const d = new Date(dateKey + "T00:00:00");
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function CalendarTab({
+  grid,
+  selectedDay,
   eventsByDate,
   users,
 }: {
-  week: WeekDay[];
+  grid: MonthGrid;
+  selectedDay: string;
   eventsByDate: Record<string, PlanEvent[]>;
   users: UserOption[];
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [addDate, setAddDate] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<PlanEvent | null>(null);
+
+  const go = (params: { month?: string; day?: string }) => {
+    const q = new URLSearchParams({ tab: "calendar", ...params });
+    router.push(`/plan?${q.toString()}`, { scroll: false });
+  };
 
   const remove = (id: number) =>
     startTransition(async () => {
       await deleteEvent(id);
     });
 
+  const selEvents = eventsByDate[selectedDay] ?? [];
+
   return (
     <div>
-      {/* Pill strip */}
-      <div className="mb-2 flex gap-[6px]">
-        {week.map((d) => {
-          const dots = (eventsByDate[d.date] ?? []).slice(0, 3);
+      {/* Month header + nav */}
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => go({ month: grid.prev })}
+          aria-label="Previous month"
+          className="h-9 w-9 rounded-[10px] border border-[#e7e5e4] bg-white text-[16px] text-[#57534e] hover:bg-[#faf9f8]"
+        >
+          ‹
+        </button>
+        <div className="font-serif text-[19px] text-[#1c1917]">{grid.label}</div>
+        <button
+          type="button"
+          onClick={() => go({ month: grid.next })}
+          aria-label="Next month"
+          className="h-9 w-9 rounded-[10px] border border-[#e7e5e4] bg-white text-[16px] text-[#57534e] hover:bg-[#faf9f8]"
+        >
+          ›
+        </button>
+      </div>
+
+      {/* Weekday heads */}
+      <div className="grid grid-cols-7 gap-[3px] px-px">
+        {WEEKDAY_HEADS.map((w) => (
+          <div
+            key={w}
+            className="pb-1 text-center text-[10px] font-semibold uppercase tracking-[0.03em] text-[#a8a29e]"
+          >
+            {w[0]}
+          </div>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div className="grid grid-cols-7 gap-[3px]">
+        {grid.cells.map((c) => {
+          const dots = (eventsByDate[c.date] ?? []).slice(0, 3);
+          const selected = c.date === selectedDay;
           return (
-            <div
-              key={d.date}
-              className="flex-1 rounded-[11px] border py-[7px] text-center"
+            <button
+              key={c.date}
+              type="button"
+              onClick={() => go({ month: grid.month, day: c.date })}
+              className="flex aspect-square flex-col items-center justify-center rounded-[10px] border"
               style={{
-                background: d.isToday ? "#059669" : "#fff",
-                borderColor: d.isToday ? "#059669" : "#efece9",
+                background: c.isToday ? "#059669" : selected ? "#ecfdf5" : "#fff",
+                borderColor: selected && !c.isToday ? "#059669" : "#efece9",
+                opacity: c.inMonth ? 1 : 0.38,
               }}
             >
-              <div
-                className="text-[10px] font-semibold tracking-[0.03em]"
-                style={{ color: d.isToday ? "rgba(255,255,255,0.8)" : "#a8a29e" }}
+              <span
+                className="text-[14px] font-semibold"
+                style={{ color: c.isToday ? "#fff" : "#1c1917" }}
               >
-                {d.short}
-              </div>
-              <div
-                className="mt-px text-[15px] font-bold"
-                style={{ color: d.isToday ? "#fff" : "#1c1917" }}
-              >
-                {d.num}
-              </div>
-              <div className="mt-1 flex h-[5px] justify-center gap-[2px]">
+                {c.day}
+              </span>
+              <span className="mt-[3px] flex h-[5px] justify-center gap-[2px]">
                 {dots.map((e, i) => (
                   <span
                     key={i}
                     className="h-1 w-1 rounded-full"
-                    style={{
-                      background: d.isToday ? "#fff" : TYPE_COLOR[e.type],
-                    }}
+                    style={{ background: c.isToday ? "#fff" : TYPE_COLOR[e.type] }}
                   />
                 ))}
-              </div>
-            </div>
+              </span>
+            </button>
           );
         })}
       </div>
@@ -182,115 +245,141 @@ function WeekTab({
         ))}
       </div>
 
-      {/* Day cards */}
-      {week.map((d) => {
-        const evs = eventsByDate[d.date] ?? [];
-        return (
-          <div key={d.date} className="mt-[14px]">
-            <div className="mx-1 mb-[7px] flex items-baseline gap-2">
-              <span
-                className="text-[14px] font-bold"
-                style={{ color: d.isToday ? "#059669" : "#57534e" }}
-              >
-                {d.label} · {d.monthDay}
-              </span>
-              {d.isToday && (
-                <span className="rounded-[5px] bg-[#ecfdf5] px-[6px] py-px text-[10px] font-bold text-[#059669]">
-                  TODAY
-                </span>
-              )}
-            </div>
-            <div className="rounded-[14px] border border-[#efece9] bg-white px-[14px] py-1">
-              {evs.length === 0 ? (
-                <div className="py-3 text-[13px] text-[#c7c2bc]">Open evening</div>
-              ) : (
-                evs.map((ev, i) => (
-                  <div
-                    key={ev.id ?? `up-${i}`}
-                    className="flex items-center gap-[11px] py-[10px]"
-                    style={{
-                      borderBottom:
-                        i < evs.length - 1 ? "1px solid #f0ede9" : "none",
-                    }}
-                  >
-                    <div className="w-[50px] flex-none text-[12px] font-semibold text-[#78716c]">
-                      {ev.timeLabel}
-                    </div>
-                    <div
-                      className="w-[3px] flex-none self-stretch rounded-[2px]"
-                      style={{ background: TYPE_COLOR[ev.type] }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[14px] text-[#1c1917]">{ev.title}</div>
-                      {ev.who && (
-                        <div className="mt-px text-[11px] text-[#a8a29e]">
-                          · {ev.who}
-                        </div>
-                      )}
-                    </div>
-                    {ev.id != null && (
-                      <button
-                        type="button"
-                        onClick={() => remove(ev.id!)}
-                        disabled={pending}
-                        aria-label={`Delete ${ev.title}`}
-                        className="flex-none px-1 text-[15px] leading-none text-[#c7c2bc] hover:text-[#dc2626] disabled:opacity-50"
-                      >
-                        ✕
-                      </button>
-                    )}
+      {/* Selected-day detail */}
+      <div className="mt-[16px]">
+        <div className="mx-1 mb-[7px] text-[14px] font-bold text-[#57534e]">
+          {formatDayLong(selectedDay)}
+        </div>
+        <div className="rounded-[14px] border border-[#efece9] bg-white px-[14px] py-1">
+          {selEvents.length === 0 ? (
+            <div className="py-3 text-[13px] text-[#c7c2bc]">Nothing planned</div>
+          ) : (
+            selEvents.map((ev, i) => {
+              const editable = ev.id != null;
+              return (
+                <div
+                  key={ev.id ?? `up-${i}`}
+                  className="flex items-center gap-[11px] py-[10px]"
+                  style={{
+                    borderBottom:
+                      i < selEvents.length - 1 ? "1px solid #f0ede9" : "none",
+                  }}
+                >
+                  <div className="w-[50px] flex-none text-[12px] font-semibold text-[#78716c]">
+                    {ev.timeLabel}
                   </div>
-                ))
-              )}
-              <button
-                type="button"
-                onClick={() => setAddDate(d.date)}
-                className="w-full py-2 text-left text-[12px] font-semibold text-[#059669]"
-              >
-                + Add
-              </button>
-            </div>
-          </div>
-        );
-      })}
+                  <div
+                    className="w-[3px] flex-none self-stretch rounded-[2px]"
+                    style={{ background: TYPE_COLOR[ev.type] }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => editable && setEditing(ev)}
+                    disabled={!editable}
+                    aria-label={editable ? `Edit ${ev.title}` : ev.title}
+                    className="min-w-0 flex-1 text-left disabled:cursor-default"
+                  >
+                    <div className="text-[14px] text-[#1c1917]">{ev.title}</div>
+                    <div className="mt-px text-[11px] text-[#a8a29e]">
+                      {ev.type === "upkeep"
+                        ? "Upkeep · mark done in Upkeep"
+                        : [
+                            LEGEND.find((l) => l.type === ev.type)?.label,
+                            ev.who,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                    </div>
+                  </button>
+                  {editable && (
+                    <button
+                      type="button"
+                      onClick={() => remove(ev.id!)}
+                      disabled={pending}
+                      aria-label={`Delete ${ev.title}`}
+                      className="flex-none px-1 text-[15px] leading-none text-[#c7c2bc] hover:text-[#dc2626] disabled:opacity-50"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              );
+            })
+          )}
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="w-full py-2 text-left text-[12px] font-semibold text-[#059669]"
+          >
+            + Add
+          </button>
+        </div>
+      </div>
 
-      {addDate && (
-        <AddEventSheet
-          date={addDate}
+      {adding && (
+        <EventSheet
+          date={selectedDay}
           users={users}
-          onClose={() => setAddDate(null)}
+          onClose={() => setAdding(false)}
+        />
+      )}
+      {editing && (
+        <EventSheet
+          date={selectedDay}
+          users={users}
+          event={editing}
+          onClose={() => setEditing(null)}
         />
       )}
     </div>
   );
 }
 
-function AddEventSheet({
+function EventSheet({
   date,
   users,
+  event,
   onClose,
 }: {
   date: string;
   users: UserOption[];
+  event?: PlanEvent; // present => edit mode
   onClose: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [time, setTime] = useState("");
-  const [type, setType] = useState<"date" | "event" | "chore">("event");
-  const [assigneeId, setAssigneeId] = useState<string>("");
+  const editing = event != null;
+  const [title, setTitle] = useState(event?.title ?? "");
+  const [day, setDay] = useState(date);
+  const [time, setTime] = useState(event?.time ?? "");
+  const [type, setType] = useState<"date" | "event" | "chore">(
+    event && event.type !== "upkeep" ? event.type : "event",
+  );
+  const [assigneeId, setAssigneeId] = useState<string>(
+    event?.assigneeId != null ? String(event.assigneeId) : "",
+  );
   const [pending, startTransition] = useTransition();
 
   const save = () => {
     const t = title.trim();
-    if (!t) return;
+    if (!t || !day) return;
     startTransition(async () => {
-      await createEvent({
-        date,
-        time: time || undefined,
-        title: t,
-        type,
-        assigneeId: assigneeId ? Number(assigneeId) : null,
-      });
+      if (editing && event?.id != null) {
+        await updateEvent({
+          id: event.id,
+          date: day,
+          time: time || undefined,
+          title: t,
+          type,
+          assigneeId: assigneeId ? Number(assigneeId) : null,
+        });
+      } else {
+        await createEvent({
+          date: day,
+          time: time || undefined,
+          title: t,
+          type,
+          assigneeId: assigneeId ? Number(assigneeId) : null,
+        });
+      }
       onClose();
     });
   };
@@ -300,7 +389,9 @@ function AddEventSheet({
 
   return (
     <BottomSheet open onClose={onClose} surface="bg-[#faf9f8]">
-      <div className="mb-3 font-serif text-[23px] text-[#1c1917]">Add event</div>
+      <div className="mb-3 font-serif text-[23px] text-[#1c1917]">
+        {editing ? "Edit event" : "Add event"}
+      </div>
       <div className="flex flex-col gap-3">
         <input
           autoFocus
@@ -308,6 +399,13 @@ function AddEventSheet({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title"
           aria-label="Event title"
+          className={field}
+        />
+        <input
+          type="date"
+          value={day}
+          onChange={(e) => setDay(e.target.value)}
+          aria-label="Event date"
           className={field}
         />
         <div className="flex gap-2">
@@ -350,7 +448,7 @@ function AddEventSheet({
           disabled={pending}
           className="rounded-[12px] bg-[#059669] py-3 text-[14px] font-bold text-white disabled:opacity-50"
         >
-          Add event
+          {editing ? "Save changes" : "Add event"}
         </button>
       </div>
     </BottomSheet>

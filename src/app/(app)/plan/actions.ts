@@ -44,6 +44,31 @@ export async function createEvent(data: NewEvent) {
   revalidatePath("/");
 }
 
+export interface EditEvent extends NewEvent {
+  id: number;
+}
+
+export async function updateEvent(data: EditEvent) {
+  await requireUser();
+  const title = data.title.trim();
+  if (!title || !data.date) return;
+  const type: EventType = (EVENT_TYPES as readonly string[]).includes(data.type)
+    ? (data.type as EventType)
+    : "event";
+  db.update(events)
+    .set({
+      date: data.date,
+      time: data.time?.trim() || null,
+      title,
+      type,
+      assigneeId: data.assigneeId ?? null,
+    })
+    .where(eq(events.id, data.id))
+    .run();
+  revalidatePath("/plan");
+  revalidatePath("/");
+}
+
 export async function deleteEvent(id: number) {
   await requireUser();
   db.delete(events).where(eq(events.id, id)).run();

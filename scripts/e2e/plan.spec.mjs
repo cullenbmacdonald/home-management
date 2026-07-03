@@ -38,16 +38,6 @@ if (seed.status !== 0) {
   process.exit(1);
 }
 
-// --- derived-upkeep fixture: an active maintenance item due this week ---
-// nextDue (no logs) = startDate + interval. Anchor on the previous Wednesday
-// with a 7-day interval so it lands on this week's Wednesday.
-const wed = weekDate(2);
-const prevWed = toYMD(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 2 - 7));
-db.prepare("DELETE FROM maintenance_items WHERE name = 'E2E Filter Swap'").run();
-db.prepare(
-  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES (?,?,?,1)",
-).run("E2E Filter Swap", 7, prevWed);
-
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
@@ -59,75 +49,155 @@ await page.fill('input[name="password"]', "changeme");
 await page.click('button[type="submit"]');
 await page.waitForURL(base + "/");
 
-// ===================== WEEK TAB =====================
+// ===================== CALENDAR TAB (month grid) =====================
+// Month helpers (mirror src/lib/week.ts).
+const monthParamOf = (y, mIdx) => `${y}-${String(mIdx + 1).padStart(2, "0")}`;
+const monthLabelOf = (y, mIdx) =>
+  new Date(y, mIdx, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+const curY = now.getFullYear();
+const curM = now.getMonth();
+const nextY = curM === 11 ? curY + 1 : curY;
+const nextM = (curM + 1) % 12;
+const prevY = curM === 0 ? curY - 1 : curY;
+const prevM = (curM + 11) % 12;
+
+// Deterministic fixtures on TODAY: a date-night (Cullen) and an unassigned event.
+db.prepare("DELETE FROM events WHERE title LIKE 'E2E Cal%'").run();
+db.prepare(
+  "INSERT INTO events (date, time, title, type, assignee_id) VALUES (?,?,?,?,?)",
+).run(todayKey, "19:00", "E2E Cal Dinner", "date", 1);
+db.prepare(
+  "INSERT INTO events (date, time, title, type, assignee_id) VALUES (?,?,?,?,NULL)",
+).run(todayKey, "21:00", "E2E Cal Party", "event");
+
+// Derived-upkeep fixture that lands exactly on TODAY (nextDue = start + interval).
+const weekAgo = toYMD(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7));
+db.prepare("DELETE FROM maintenance_items WHERE name = 'E2E Filter Swap'").run();
+db.prepare(
+  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES (?,?,?,1)",
+).run("E2E Filter Swap", 7, weekAgo);
+
 await page.goto(base + "/plan");
 await page.waitForTimeout(400);
 
-// P1: pill strip — today filled emerald + dots present
-const pills = page.locator("div.rounded-\\[11px\\]");
-const pillCount = await pills.count();
-let emeraldPills = 0;
-for (let i = 0; i < pillCount; i++) {
-  const bg = await pills.nth(i).evaluate((el) => getComputedStyle(el).backgroundColor);
-  if (bg === "rgb(5, 150, 105)") emeraldPills++;
+// C1: month header shows the current month, exactly one emerald "today" cell, dots render.
+ok("C1 month header renders", await page.getByText(monthLabelOf(curY, curM)).first().isVisible());
+const cells = page.locator("button.aspect-square");
+const cellCount = await cells.count();
+let emeraldCells = 0;
+for (let i = 0; i < cellCount; i++) {
+  const bg = await cells.nth(i).evaluate((el) => getComputedStyle(el).backgroundColor);
+  if (bg === "rgb(5, 150, 105)") emeraldCells++;
 }
-ok("P1 exactly one today pill is emerald", emeraldPills === 1);
-const dotCount = await page.locator("div.rounded-\\[11px\\] span.rounded-full").count();
-ok("P1 event dots render on pill strip", dotCount > 0);
+ok("C1 exactly one today cell is emerald", emeraldCells === 1);
+const dotCount = await page.locator("button.aspect-square span.rounded-full").count();
+ok("C1 event dots render on grid", dotCount > 0);
 
-// P2: legend shows all four type labels
+// C2: legend shows all four type labels.
 for (const label of ["Date night", "Event", "Chore", "Upkeep"]) {
-  ok(`P2 legend has ${label}`, (await page.getByText(label, { exact: true }).count()) >= 1);
+  ok(`C2 legend has ${label}`, (await page.getByText(label, { exact: true }).count()) >= 1);
 }
 
-// P3: day cards list events with who + type-colored bars
-ok("P3 event title renders", await page.getByText("Trash & recycling out").first().isVisible());
-ok("P3 assignee shows", await page.getByText("· Cullen").first().isVisible());
-// collect 3px bar colors across the view
+// C3: selected-day panel (defaults to today) lists today's events with type-colored bars.
+ok("C3 date-night event renders", await page.getByText("E2E Cal Dinner").first().isVisible());
+ok("C3 event renders", await page.getByText("E2E Cal Party").first().isVisible());
+ok("C3 assignee shows in detail", await page.getByText(/· Cullen/).first().isVisible());
 const barColors = await page.evaluate(() =>
   [...document.querySelectorAll("div")]
     .filter((el) => getComputedStyle(el).width === "3px")
     .map((el) => getComputedStyle(el).backgroundColor),
 );
-ok("P3 date-night bar emerald", barColors.includes("rgb(5, 150, 105)"));
-ok("P3 event bar sky", barColors.includes("rgb(14, 165, 233)"));
+ok("C3 date-night bar emerald", barColors.includes("rgb(5, 150, 105)"));
+ok("C3 event bar sky", barColors.includes("rgb(14, 165, 233)"));
 
-// P4: derived upkeep entry appears and is NOT a stored event
-ok("P4 derived upkeep visible in week", await page.getByText("E2E Filter Swap").first().isVisible());
+// C4: derived upkeep shows in today's panel, is not a stored event, and is not editable/deletable.
+ok("C4 derived upkeep visible", await page.getByText("E2E Filter Swap").first().isVisible());
 const storedUpkeep = db
   .prepare("SELECT COUNT(*) c FROM events WHERE title = 'E2E Filter Swap'")
   .get().c;
-ok("P4 derived upkeep is not a stored event", storedUpkeep === 0);
-ok("P4 upkeep amber bar present", barColors.includes("rgb(217, 119, 6)"));
+ok("C4 derived upkeep is not a stored event", storedUpkeep === 0);
+ok("C4 upkeep amber bar present", barColors.includes("rgb(217, 119, 6)"));
+ok(
+  "C4 upkeep has no delete control",
+  (await page.locator('button[aria-label="Delete E2E Filter Swap"]').count()) === 0,
+);
 
-// P5: empty day shows "Open evening"
-// Clear derived upkeep + events on one non-today day so it renders empty.
-db.prepare("UPDATE maintenance_items SET active = 0").run();
-let emptyDay = null;
-for (let o = 0; o < 7; o++) {
-  const d = weekDate(o);
-  if (d !== todayKey) {
-    emptyDay = d;
-    break;
-  }
-}
-db.prepare("DELETE FROM events WHERE date = ?").run(emptyDay);
-await page.reload();
+// C5: clicking a day selects it (panel heading updates to that date).
+await page.getByRole("button", { name: "15", exact: true }).click();
 await page.waitForTimeout(400);
-ok("P5 empty day shows Open evening", (await page.getByText("Open evening").count()) >= 1);
+const day15Label = new Date(curY, curM, 15).toLocaleDateString("en-US", {
+  weekday: "long",
+  month: "short",
+  day: "numeric",
+});
+ok("C5 clicking a day updates the selected-day heading", await page.getByText(day15Label).first().isVisible());
 
-// P6: add + delete an event via UI (on today's card)
-const todayWrap = page.locator("div.mt-\\[14px\\]").filter({ hasText: "TODAY" });
-await todayWrap.getByRole("button", { name: "+ Add" }).click();
+// C6: month navigation moves forward and back.
+await page.goto(base + "/plan");
 await page.waitForTimeout(300);
-await page.fill('input[aria-label="Event title"]', "E2E Plan Event");
+await page.getByRole("button", { name: "Next month" }).click();
+await page.waitForTimeout(400);
+ok("C6 next advances the month", await page.getByText(monthLabelOf(nextY, nextM)).first().isVisible());
+await page.getByRole("button", { name: "Previous month" }).click();
+await page.getByRole("button", { name: "Previous month" }).click();
+await page.waitForTimeout(400);
+ok("C6 prev goes back a month", await page.getByText(monthLabelOf(prevY, prevM)).first().isVisible());
+
+// C7: create an event more than a month out via the UI (previously impossible).
+const farDay = monthParamOf(nextY, nextM) + "-20";
+await page.goto(base + `/plan?tab=calendar&month=${monthParamOf(nextY, nextM)}&day=${farDay}`);
+await page.waitForTimeout(400);
+await page.getByRole("button", { name: "+ Add" }).click();
+await page.waitForTimeout(300);
+ok(
+  "C7 add sheet prefills the selected far date",
+  (await page.locator('input[aria-label="Event date"]').inputValue()) === farDay,
+);
+await page.fill('input[aria-label="Event title"]', "E2E Far Event");
 await page.selectOption('select[aria-label="Event type"]', "event");
 await page.getByRole("button", { name: "Add event" }).click();
 await page.waitForTimeout(600);
-ok("P6 event added via UI", await page.getByText("E2E Plan Event").first().isVisible());
-await page.locator('button[aria-label="Delete E2E Plan Event"]').click();
+ok("C7 far-future event created", await page.getByText("E2E Far Event").first().isVisible());
+const farStored = db
+  .prepare("SELECT date FROM events WHERE title = 'E2E Far Event'")
+  .get();
+ok("C7 event stored on the far date", farStored?.date === farDay);
+
+// C8: edit an existing event via the UI — sheet prefills, changes persist.
+await page.getByRole("button", { name: "Edit E2E Far Event" }).click();
+await page.waitForTimeout(300);
+ok("C8 edit sheet opens", await page.getByText("Edit event").first().isVisible());
+ok(
+  "C8 edit sheet prefills title",
+  (await page.locator('input[aria-label="Event title"]').inputValue()) === "E2E Far Event",
+);
+ok(
+  "C8 edit sheet prefills date",
+  (await page.locator('input[aria-label="Event date"]').inputValue()) === farDay,
+);
+await page.fill('input[aria-label="Event title"]', "E2E Far Edited");
+await page.selectOption('select[aria-label="Event assignee"]', "10"); // Steph
+await page.getByRole("button", { name: "Save changes" }).click();
 await page.waitForTimeout(600);
-ok("P6 event deleted via UI", (await page.getByText("E2E Plan Event").count()) === 0);
+ok("C8 edited title shows", await page.getByText("E2E Far Edited").first().isVisible());
+ok("C8 old title gone", (await page.getByText("E2E Far Event").count()) === 0);
+const edited = db
+  .prepare("SELECT title, assignee_id FROM events WHERE date = ? AND title LIKE 'E2E Far%'")
+  .get(farDay);
+ok("C8 edit persisted to db", edited?.title === "E2E Far Edited" && edited?.assignee_id === 10);
+await page.locator('button[aria-label="Delete E2E Far Edited"]').click();
+await page.waitForTimeout(600);
+ok("C8 event deleted via UI", (await page.getByText("E2E Far Edited").count()) === 0);
+
+// C9: a day with nothing shows "Nothing planned" (deactivate upkeep so no dots interfere).
+db.prepare("UPDATE maintenance_items SET active = 0").run();
+await page.goto(base + `/plan?tab=calendar&month=${monthParamOf(nextY, nextM)}&day=${monthParamOf(nextY, nextM)}-15`);
+await page.waitForTimeout(400);
+ok("C9 empty day shows Nothing planned", (await page.getByText("Nothing planned").count()) >= 1);
+db.prepare("UPDATE maintenance_items SET active = 1").run();
 
 // ===================== MEALS TAB =====================
 // Set up a controlled grocery list for the de-dupe check.
@@ -214,9 +284,10 @@ ok(
   finalNames.includes("zucchini") && finalNames.includes("halloumi"),
 );
 
-// restore shared state for later specs (re-activate maintenance, drop fixture)
+// restore shared state for later specs (re-activate maintenance, drop fixtures)
 db.prepare("UPDATE maintenance_items SET active = 1").run();
 db.prepare("DELETE FROM maintenance_items WHERE name = 'E2E Filter Swap'").run();
+db.prepare("DELETE FROM events WHERE title LIKE 'E2E Cal%' OR title LIKE 'E2E Far%'").run();
 
 await browser.close();
 db.close();
