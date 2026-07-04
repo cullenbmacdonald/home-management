@@ -179,7 +179,13 @@ ok(
   (await page.locator('input[aria-label="Event date"]').inputValue()) === farDay,
 );
 await page.fill('input[aria-label="Event title"]', "E2E Far Edited");
-await page.selectOption('select[aria-label="Event assignee"]', "10"); // Steph
+const stephId = db
+  .prepare("SELECT id FROM users WHERE display_name = 'Steph'")
+  .get().id;
+await page.selectOption(
+  'select[aria-label="Event assignee"]',
+  String(stephId),
+);
 await page.getByRole("button", { name: "Save changes" }).click();
 await page.waitForTimeout(600);
 ok("C8 edited title shows", await page.getByText("E2E Far Edited").first().isVisible());
@@ -187,7 +193,10 @@ ok("C8 old title gone", (await page.getByText("E2E Far Event").count()) === 0);
 const edited = db
   .prepare("SELECT title, assignee_id FROM events WHERE date = ? AND title LIKE 'E2E Far%'")
   .get(farDay);
-ok("C8 edit persisted to db", edited?.title === "E2E Far Edited" && edited?.assignee_id === 10);
+ok(
+  "C8 edit persisted to db",
+  edited?.title === "E2E Far Edited" && edited?.assignee_id === stephId,
+);
 await page.locator('button[aria-label="Delete E2E Far Edited"]').click();
 await page.waitForTimeout(600);
 ok("C8 event deleted via UI", (await page.getByText("E2E Far Edited").count()) === 0);

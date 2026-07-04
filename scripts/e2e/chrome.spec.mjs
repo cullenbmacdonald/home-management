@@ -37,10 +37,12 @@ ok("G7 header title uses Instrument Serif", /Instrument Serif/.test(titleFont));
 // G8 — primary tap targets ≥ 44px: nav tabs, upkeep Done buttons. (Header icon
 // buttons are 32–34px by design per the prototype — accepted deviation, not tested.)
 const navMin = await page.evaluate(() => {
-  const els = [...document.querySelectorAll("nav a")];
+  const els = [...document.querySelectorAll('[data-testid="bottom-nav"] a')];
   return Math.min(...els.map((e) => e.getBoundingClientRect().height));
 });
-ok(`G8 nav tab height ≥ 44px (${navMin})`, navMin >= 44);
+// Round to the nearest pixel: fractional layout can render a 44px target at
+// 43.9999… which still satisfies the ≥44px tap-target intent.
+ok(`G8 nav tab height ≥ 44px (${navMin})`, Math.round(navMin) >= 44);
 await page.goto(base + "/maintenance");
 await page.waitForSelector("text=Done");
 const doneMin = await page.evaluate(() => {
@@ -51,11 +53,11 @@ const doneMin = await page.evaluate(() => {
     ? Math.min(...els.map((e) => e.getBoundingClientRect().height))
     : 0;
 });
-ok(`G8 upkeep Done button height ≥ 44px (${doneMin})`, doneMin >= 44);
+ok(`G8 upkeep Done button height ≥ 44px (${doneMin})`, Math.round(doneMin) >= 44);
 await page.goto(base + "/");
 
 // G5 — bottom tab bar: 5 tabs with correct hrefs, active state on current tab.
-const hrefs = await page.$$eval("nav a", (els) =>
+const hrefs = await page.$$eval('[data-testid="bottom-nav"] a', (els) =>
   els.map((e) => new URL(e.href).pathname),
 );
 ok(
@@ -63,7 +65,9 @@ ok(
   JSON.stringify(hrefs) ===
     JSON.stringify(["/", "/maintenance", "/plan", "/groceries", "/more"]),
 );
-const activeHref = await page.$eval('nav a[aria-current="page"]', (e) =>
+const activeHref = await page.$eval(
+  '[data-testid="bottom-nav"] a[aria-current="page"]',
+  (e) =>
   new URL(e.href).pathname,
 );
 ok("G5 active tab is Home on /", activeHref === "/");
