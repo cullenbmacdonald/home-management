@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/db";
 import { groceryItems } from "@/db/schema";
 import { ShopList, type ShopRow } from "@/components/shop-list";
@@ -15,5 +16,17 @@ export default function GroceriesPage() {
     isStaple: r.isStaple,
   }));
 
-  return <ShopList items={items} />;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-end">
+        <Link
+          href="/groceries/staples"
+          className="text-[13px] font-semibold text-[#57534e]"
+        >
+          Manage staples ›
+        </Link>
+      </div>
+      <ShopList items={items} />
+    </div>
+  );
 }

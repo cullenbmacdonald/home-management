@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth";
 
 function refresh() {
   revalidatePath("/groceries");
+  revalidatePath("/groceries/staples");
   revalidatePath("/");
 }
 
@@ -67,6 +68,39 @@ export async function restockStaples() {
         .run();
     }
   }
+  refresh();
+}
+
+/** Add a staple to the pool. Duplicate names are ignored, case-insensitively. */
+export async function addStaple(name: string, category: string) {
+  await requireUser();
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  const cat: GroceryCategory = isGroceryCategory(category)
+    ? category
+    : "produce";
+  db.insert(staples)
+    .values({ name: trimmed, category: cat })
+    .onConflictDoNothing()
+    .run();
+  refresh();
+}
+
+/** Remove a staple from the pool. Does not touch the live shopping list. */
+export async function deleteStaple(id: number) {
+  await requireUser();
+  db.delete(staples).where(eq(staples.id, id)).run();
+  refresh();
+}
+
+/** Change a staple's aisle category. */
+export async function updateStapleCategory(id: number, category: string) {
+  await requireUser();
+  if (!isGroceryCategory(category)) return;
+  db.update(staples)
+    .set({ category })
+    .where(eq(staples.id, id))
+    .run();
   refresh();
 }
 
