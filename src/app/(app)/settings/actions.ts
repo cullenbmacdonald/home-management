@@ -7,11 +7,11 @@ import { db } from "@/db";
 import { settings, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 
-function setSetting(key: string, value: string) {
-  db.insert(settings)
+async function setSetting(key: string, value: string) {
+  await db
+    .insert(settings)
     .values({ key, value })
-    .onConflictDoUpdate({ target: settings.key, set: { value } })
-    .run();
+    .onConflictDoUpdate({ target: settings.key, set: { value } });
 }
 
 /**
@@ -33,9 +33,9 @@ export async function saveHaConfig(
     .map((l) => l.trim())
     .filter(Boolean);
 
-  setSetting("haBaseUrl", baseUrl);
-  setSetting("haEntities", JSON.stringify(entities));
-  if (token) setSetting("haToken", token);
+  await setSetting("haBaseUrl", baseUrl);
+  await setSetting("haEntities", JSON.stringify(entities));
+  if (token) await setSetting("haToken", token);
 
   revalidatePath("/settings");
   revalidatePath("/home");
@@ -56,17 +56,19 @@ export async function changePassword(
   if (next.length < 6) return "New password must be at least 6 characters";
   if (next !== confirm) return "New passwords do not match";
 
-  const row = db
-    .select({ passwordHash: users.passwordHash })
-    .from(users)
-    .where(eq(users.id, user.id))
-    .get();
+  const row = (
+    await db
+      .select({ passwordHash: users.passwordHash })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+  )[0];
   if (!row || !bcrypt.compareSync(current, row.passwordHash)) {
     return "Current password is incorrect";
   }
 
   const hash = bcrypt.hashSync(next, 10);
-  db.update(users).set({ passwordHash: hash }).where(eq(users.id, user.id)).run();
+  await db.update(users).set({ passwordHash: hash }).where(eq(users.id, user.id));
   // Session cookie is unaffected by the hash change, so the user stays signed in.
   return "Password updated";
 }

@@ -1,11 +1,9 @@
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { all, get, run, close } from "./db.mjs";
 
 const base = "http://localhost:3777";
-const dbPath = path.join(process.cwd(), "data", "homebase.db");
-const db = new Database(dbPath);
 
 const ok = (name, cond) => {
   console.log(cond ? `PASS ${name}` : `FAIL ${name}`);
@@ -65,20 +63,23 @@ const prevY = curM === 0 ? curY - 1 : curY;
 const prevM = (curM + 11) % 12;
 
 // Deterministic fixtures on TODAY: a date-night (Cullen) and an unassigned event.
-db.prepare("DELETE FROM events WHERE title LIKE 'E2E Cal%'").run();
-db.prepare(
-  "INSERT INTO events (date, time, title, type, assignee_id) VALUES (?,?,?,?,?)",
-).run(todayKey, "19:00", "E2E Cal Dinner", "date", 1);
-db.prepare(
-  "INSERT INTO events (date, time, title, type, assignee_id) VALUES (?,?,?,?,NULL)",
-).run(todayKey, "21:00", "E2E Cal Party", "event");
+await run("DELETE FROM events WHERE title LIKE 'E2E Cal%'");
+await run(
+  "INSERT INTO events (date, time, title, type, assignee_id) VALUES ($1,$2,$3,$4,$5)",
+  [todayKey, "19:00", "E2E Cal Dinner", "date", 1],
+);
+await run(
+  "INSERT INTO events (date, time, title, type, assignee_id) VALUES ($1,$2,$3,$4,NULL)",
+  [todayKey, "21:00", "E2E Cal Party", "event"],
+);
 
 // Derived-upkeep fixture that lands exactly on TODAY (nextDue = start + interval).
 const weekAgo = toYMD(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7));
-db.prepare("DELETE FROM maintenance_items WHERE name = 'E2E Filter Swap'").run();
-db.prepare(
-  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES (?,?,?,1)",
-).run("E2E Filter Swap", 7, weekAgo);
+await run("DELETE FROM maintenance_items WHERE name = 'E2E Filter Swap'");
+await run(
+  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES ($1,$2,$3,true)",
+  ["E2E Filter Swap", 7, weekAgo],
+);
 
 await page.goto(base + "/plan");
 await page.waitForTimeout(400);
@@ -115,9 +116,9 @@ ok("C3 event bar sky", barColors.includes("rgb(14, 165, 233)"));
 
 // C4: derived upkeep shows in today's panel, is not a stored event, and is not editable/deletable.
 ok("C4 derived upkeep visible", await page.getByText("E2E Filter Swap").first().isVisible());
-const storedUpkeep = db
-  .prepare("SELECT COUNT(*) c FROM events WHERE title = 'E2E Filter Swap'")
-  .get().c;
+const storedUpkeep = Number(
+  (await get("SELECT COUNT(*) c FROM events WHERE title = 'E2E Filter Swap'")).c,
+);
 ok("C4 derived upkeep is not a stored event", storedUpkeep === 0);
 ok("C4 upkeep amber bar present", barColors.includes("rgb(217, 119, 6)"));
 ok(
@@ -161,9 +162,7 @@ await page.selectOption('select[aria-label="Event type"]', "event");
 await page.getByRole("button", { name: "Add event" }).click();
 await page.waitForTimeout(600);
 ok("C7 far-future event created", await page.getByText("E2E Far Event").first().isVisible());
-const farStored = db
-  .prepare("SELECT date FROM events WHERE title = 'E2E Far Event'")
-  .get();
+const farStored = await get("SELECT date FROM events WHERE title = 'E2E Far Event'");
 ok("C7 event stored on the far date", farStored?.date === farDay);
 
 // C8: edit an existing event via the UI — sheet prefills, changes persist.
@@ -179,9 +178,7 @@ ok(
   (await page.locator('input[aria-label="Event date"]').inputValue()) === farDay,
 );
 await page.fill('input[aria-label="Event title"]', "E2E Far Edited");
-const stephId = db
-  .prepare("SELECT id FROM users WHERE display_name = 'Steph'")
-  .get().id;
+const stephId = (await get("SELECT id FROM users WHERE display_name = 'Steph'")).id;
 await page.selectOption(
   'select[aria-label="Event assignee"]',
   String(stephId),
@@ -190,9 +187,10 @@ await page.getByRole("button", { name: "Save changes" }).click();
 await page.waitForTimeout(600);
 ok("C8 edited title shows", await page.getByText("E2E Far Edited").first().isVisible());
 ok("C8 old title gone", (await page.getByText("E2E Far Event").count()) === 0);
-const edited = db
-  .prepare("SELECT title, assignee_id FROM events WHERE date = ? AND title LIKE 'E2E Far%'")
-  .get(farDay);
+const edited = await get(
+  "SELECT title, assignee_id FROM events WHERE date = $1 AND title LIKE 'E2E Far%'",
+  [farDay],
+);
 ok(
   "C8 edit persisted to db",
   edited?.title === "E2E Far Edited" && edited?.assignee_id === stephId,
@@ -202,23 +200,23 @@ await page.waitForTimeout(600);
 ok("C8 event deleted via UI", (await page.getByText("E2E Far Edited").count()) === 0);
 
 // C9: a day with nothing shows "Nothing planned" (deactivate upkeep so no dots interfere).
-db.prepare("UPDATE maintenance_items SET active = 0").run();
+await run("UPDATE maintenance_items SET active = false");
 await page.goto(base + `/plan?tab=calendar&month=${monthParamOf(nextY, nextM)}&day=${monthParamOf(nextY, nextM)}-15`);
 await page.waitForTimeout(400);
 ok("C9 empty day shows Nothing planned", (await page.getByText("Nothing planned").count()) >= 1);
-db.prepare("UPDATE maintenance_items SET active = 1").run();
+await run("UPDATE maintenance_items SET active = true");
 
 // ===================== MEALS TAB =====================
 // Set up a controlled grocery list for the de-dupe check.
-db.prepare("DELETE FROM grocery_items").run();
+await run("DELETE FROM grocery_items");
 // Avocados already present unchecked -> must be skipped (case-insensitive).
-db.prepare(
-  "INSERT INTO grocery_items (name, category, checked) VALUES ('avocados','produce',0)",
-).run();
+await run(
+  "INSERT INTO grocery_items (name, category, checked) VALUES ('avocados','produce',false)",
+);
 // Tortillas present but CHECKED -> de-dupe is unchecked-only, so it re-adds.
-db.prepare(
-  "INSERT INTO grocery_items (name, category, checked) VALUES ('Tortillas','pantry',1)",
-).run();
+await run(
+  "INSERT INTO grocery_items (name, category, checked) VALUES ('Tortillas','pantry',true)",
+);
 
 await page.goto(base + "/plan?tab=meals");
 await page.waitForTimeout(400);
@@ -238,10 +236,9 @@ const tacoCard = page
 await tacoCard.getByRole("button", { name: "Add ingredients to list" }).click();
 await page.waitForTimeout(700);
 
-const groceryNames = db
-  .prepare("SELECT LOWER(name) n FROM grocery_items")
-  .all()
-  .map((r) => r.n);
+const groceryNames = (await all("SELECT LOWER(name) n FROM grocery_items")).map(
+  (r) => r.n,
+);
 const count = (n) => groceryNames.filter((x) => x === n).length;
 // Taco ingredients: ground beef, tortillas, avocados, cilantro, limes, cotija
 ok("M2 skips existing unchecked (avocados not duplicated)", count("avocados") === 1);
@@ -262,10 +259,11 @@ ok("M3 Added button disabled", await addedBtn.isDisabled());
 // M5: create a meal via UI (2 ingredients) then push to list
 // Free up a day by removing its seeded meal.
 const satDate = weekDate(5);
-db.prepare(
-  "DELETE FROM meal_ingredients WHERE meal_id IN (SELECT id FROM meals WHERE date = ?)",
-).run(satDate);
-db.prepare("DELETE FROM meals WHERE date = ?").run(satDate);
+await run(
+  "DELETE FROM meal_ingredients WHERE meal_id IN (SELECT id FROM meals WHERE date = $1)",
+  [satDate],
+);
+await run("DELETE FROM meals WHERE date = $1", [satDate]);
 await page.reload();
 await page.waitForTimeout(400);
 await page.getByRole("button", { name: "+ Plan dinner" }).first().click();
@@ -284,19 +282,18 @@ const newCard = page
   .filter({ hasText: "E2E Test Dinner" });
 await newCard.getByRole("button", { name: "Add ingredients to list" }).click();
 await page.waitForTimeout(700);
-const finalNames = db
-  .prepare("SELECT LOWER(name) n FROM grocery_items")
-  .all()
-  .map((r) => r.n);
+const finalNames = (await all("SELECT LOWER(name) n FROM grocery_items")).map(
+  (r) => r.n,
+);
 ok(
   "M5 created meal ingredients pushed to list",
   finalNames.includes("zucchini") && finalNames.includes("halloumi"),
 );
 
 // restore shared state for later specs (re-activate maintenance, drop fixtures)
-db.prepare("UPDATE maintenance_items SET active = 1").run();
-db.prepare("DELETE FROM maintenance_items WHERE name = 'E2E Filter Swap'").run();
-db.prepare("DELETE FROM events WHERE title LIKE 'E2E Cal%' OR title LIKE 'E2E Far%'").run();
+await run("UPDATE maintenance_items SET active = true");
+await run("DELETE FROM maintenance_items WHERE name = 'E2E Filter Swap'");
+await run("DELETE FROM events WHERE title LIKE 'E2E Cal%' OR title LIKE 'E2E Far%'");
 
 await browser.close();
-db.close();
+await close();

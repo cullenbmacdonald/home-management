@@ -11,20 +11,18 @@ export async function createVendor(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
   const s = (k: string) => String(formData.get(k) ?? "").trim() || null;
-  db.insert(vendors)
-    .values({
-      name,
-      specialty: s("specialty"),
-      phone: s("phone"),
-      email: s("email"),
-      notes: s("notes"),
-    })
-    .run();
+  await db.insert(vendors).values({
+    name,
+    specialty: s("specialty"),
+    phone: s("phone"),
+    email: s("email"),
+    notes: s("notes"),
+  });
   revalidatePath("/vendors");
 }
 
 export async function deleteVendor(id: number) {
   await requireUser();
-  db.delete(vendors).where(eq(vendors.id, id)).run();
+  await db.delete(vendors).where(eq(vendors.id, id));
   revalidatePath("/vendors");
 }

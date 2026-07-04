@@ -24,7 +24,7 @@ export async function createInventoryItem(formData: FormData) {
   await requireUser();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
-  db.insert(inventoryItems).values({ name, ...fields(formData) }).run();
+  await db.insert(inventoryItems).values({ name, ...fields(formData) });
   revalidatePath("/inventory");
 }
 
@@ -32,15 +32,15 @@ export async function updateInventoryItem(id: number, formData: FormData) {
   await requireUser();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
-  db.update(inventoryItems)
+  await db
+    .update(inventoryItems)
     .set({ name, ...fields(formData) })
-    .where(eq(inventoryItems.id, id))
-    .run();
+    .where(eq(inventoryItems.id, id));
   revalidatePath("/inventory");
 }
 
 export async function deleteInventoryItem(id: number) {
   await requireUser();
-  db.delete(inventoryItems).where(eq(inventoryItems.id, id)).run();
+  await db.delete(inventoryItems).where(eq(inventoryItems.id, id));
   revalidatePath("/inventory");
 }

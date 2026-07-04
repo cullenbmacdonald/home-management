@@ -4,16 +4,38 @@ services:
     ports:
       - "3000:3000"
     volumes:
+      # Uploaded documents live on disk; the database lives in Postgres.
       - homebase-data:/data
     environment:
-      # First-boot account setup (only used when the DB is empty)
+      # Point this at a database + user on your existing Postgres instance, e.g.
+      #   postgres://homebase:PASSWORD@postgres:5432/homebase
+      # For Portainer, set DATABASE_URL as a stack environment variable.
+      DATABASE_URL: ${DATABASE_URL:-postgres://homebase:changeme@postgres:5432/homebase}
+      # First-boot account setup (only used when the users table is empty)
       USER1_USERNAME: cullen
       USER1_NAME: Cullen
       USER1_PASSWORD: ${USER1_PASSWORD:-changeme}
-      USER2_USERNAME: partner
-      USER2_NAME: Partner
+      USER2_USERNAME: steph
+      USER2_NAME: Steph
       USER2_PASSWORD: ${USER2_PASSWORD:-changeme}
     restart: unless-stopped
+    # If your Postgres runs in the same compose project, uncomment:
+    # depends_on:
+    #   - postgres
+
+  # Optional: a self-contained Postgres for standalone runs. If you already have
+  # a Postgres instance (e.g. shared across your apps), delete this service and
+  # point DATABASE_URL at it instead.
+  # postgres:
+  #   image: postgres:17-alpine
+  #   environment:
+  #     POSTGRES_USER: homebase
+  #     POSTGRES_PASSWORD: changeme
+  #     POSTGRES_DB: homebase
+  #   volumes:
+  #     - homebase-pg:/var/lib/postgresql/data
+  #   restart: unless-stopped
 
 volumes:
   homebase-data:
+  # homebase-pg:

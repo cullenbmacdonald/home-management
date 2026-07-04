@@ -1,12 +1,7 @@
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { get, run, close } from "./db.mjs";
 
 const base = "http://localhost:3777";
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const dbPath = path.join(process.env.DATA_DIR ?? path.join(repoRoot, "data"), "homebase.db");
-const db = new Database(dbPath, { readonly: false });
 
 const ok = (name, cond) => {
   console.log(cond ? `PASS ${name}` : `FAIL ${name}`);
@@ -21,14 +16,14 @@ const today = new Date().toISOString().slice(0, 10);
 
 // Force the daily due-sweep to run on the next page load.
 const armSweep = () =>
-  db
-    .prepare(
-      "INSERT INTO settings(key,value) VALUES('lastDueSweep','2000-01-01') " +
-        "ON CONFLICT(key) DO UPDATE SET value='2000-01-01'",
-    )
-    .run();
-const countText = (text) =>
-  db.prepare("SELECT COUNT(*) c FROM notifications WHERE text = ?").get(text).c;
+  run(
+    "INSERT INTO settings(key,value) VALUES('lastDueSweep','2000-01-01') " +
+      "ON CONFLICT (key) DO UPDATE SET value='2000-01-01'",
+  );
+const countText = async (text) =>
+  Number((await get("SELECT COUNT(*) c FROM notifications WHERE text = $1", [text])).c);
+const severityOf = async (text) =>
+  (await get("SELECT severity FROM notifications WHERE text=$1", [text]))?.severity;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -45,71 +40,60 @@ await page.waitForURL(base + "/");
 // N1: due sweep generates overdue + due-soon notifications, idempotent per day
 // ---------------------------------------------------------------------------
 // Overdue by ~4 days: interval 1, started 5 days ago (no logs).
-db.prepare(
-  "INSERT INTO maintenance_items(name,interval_days,start_date,active) VALUES(?,?,?,1)",
-).run("N1 overdue item", 1, ymd(-5));
+await run(
+  "INSERT INTO maintenance_items(name,interval_days,start_date,active) VALUES($1,$2,$3,true)",
+  ["N1 overdue item", 1, ymd(-5)],
+);
 // Due tomorrow: interval 1, started today -> next due tomorrow.
-db.prepare(
-  "INSERT INTO maintenance_items(name,interval_days,start_date,active) VALUES(?,?,?,1)",
-).run("N1 duesoon item", 1, today);
+await run(
+  "INSERT INTO maintenance_items(name,interval_days,start_date,active) VALUES($1,$2,$3,true)",
+  ["N1 duesoon item", 1, today],
+);
 
 const overdueText = "N1 overdue item is 4 days overdue";
 const dueSoonText = "N1 duesoon item due in 1 day";
 
-armSweep();
+await armSweep();
 await page.goto(base + "/notifications");
-ok("N1 sweep created overdue notification", countText(overdueText) === 1);
-ok("N1 sweep created due-soon notification", countText(dueSoonText) === 1);
-ok(
-  "N1 overdue severity is 'overdue'",
-  db.prepare("SELECT severity FROM notifications WHERE text=?").get(overdueText)
-    ?.severity === "overdue",
-);
-ok(
-  "N1 due-soon severity is 'due-soon'",
-  db.prepare("SELECT severity FROM notifications WHERE text=?").get(dueSoonText)
-    ?.severity === "due-soon",
-);
+ok("N1 sweep created overdue notification", (await countText(overdueText)) === 1);
+ok("N1 sweep created due-soon notification", (await countText(dueSoonText)) === 1);
+ok("N1 overdue severity is 'overdue'", (await severityOf(overdueText)) === "overdue");
+ok("N1 due-soon severity is 'due-soon'", (await severityOf(dueSoonText)) === "due-soon");
 
 // Same-day re-load: guard skips the sweep, no duplicates.
 await page.goto(base + "/");
 await page.goto(base + "/notifications");
-ok("N1 same-day reload does not duplicate overdue", countText(overdueText) === 1);
-ok("N1 same-day reload does not duplicate due-soon", countText(dueSoonText) === 1);
+ok("N1 same-day reload does not duplicate overdue", (await countText(overdueText)) === 1);
+ok("N1 same-day reload does not duplicate due-soon", (await countText(dueSoonText)) === 1);
 
 // Force the sweep to actually run again (as if a new day): text dedupe holds.
-armSweep();
+await armSweep();
 await page.goto(base + "/notifications");
-ok("N1 forced re-sweep still no duplicate overdue", countText(overdueText) === 1);
-ok("N1 forced re-sweep still no duplicate due-soon", countText(dueSoonText) === 1);
+ok("N1 forced re-sweep still no duplicate overdue", (await countText(overdueText)) === 1);
+ok("N1 forced re-sweep still no duplicate due-soon", (await countText(dueSoonText)) === 1);
 
 // ---------------------------------------------------------------------------
 // N2: mutation hooks create success notifications with names/labels
 // ---------------------------------------------------------------------------
 // markDone -> "Cullen completed "..."
-const doneItem = db
-  .prepare(
-    "INSERT INTO maintenance_items(name,interval_days,start_date,active) VALUES(?,?,?,1)",
-  )
-  .run("N2 done item", 30, today);
-const doneId = Number(doneItem.lastInsertRowid);
+await run(
+  "INSERT INTO maintenance_items(name,interval_days,start_date,active) VALUES($1,$2,$3,true)",
+  ["N2 done item", 30, today],
+);
 await page.goto(base + "/maintenance");
 await page.locator("button", { hasText: "N2 done item" }).first().click();
 await page.getByRole("button", { name: /Mark done as Cullen/ }).click();
 await page.waitForTimeout(600);
 ok(
   "N2 markDone creates success notification with user name",
-  countText('Cullen completed “N2 done item”') === 1 &&
-    db
-      .prepare("SELECT severity FROM notifications WHERE text=?")
-      .get('Cullen completed “N2 done item”')?.severity === "success",
+  (await countText('Cullen completed “N2 done item”')) === 1 &&
+    (await severityOf('Cullen completed “N2 done item”')) === "success",
 );
-void doneId;
 
 // advanceWishlistItem -> "Cullen moved "..." to Decided"
-db.prepare(
+await run(
   "INSERT INTO wishlist_items(name,status) VALUES('N2 wish item','considering')",
-).run();
+);
 await page.goto(base + "/wishlist");
 await page
   .locator('li:has-text("N2 wish item")')
@@ -119,10 +103,8 @@ await page
 await page.waitForTimeout(600);
 ok(
   "N2 advance creates success notification with stage label",
-  countText('Cullen moved “N2 wish item” to Decided') === 1 &&
-    db
-      .prepare("SELECT severity FROM notifications WHERE text=?")
-      .get('Cullen moved “N2 wish item” to Decided')?.severity === "success",
+  (await countText('Cullen moved “N2 wish item” to Decided')) === 1 &&
+    (await severityOf('Cullen moved “N2 wish item” to Decided')) === "success",
 );
 
 // ---------------------------------------------------------------------------
@@ -147,9 +129,9 @@ const unreadWeight = await unreadRow
   .evaluate((el) => getComputedStyle(el).fontWeight);
 ok("N3 unread text is bold (600)", unreadWeight === "600");
 // A read row exists (N2 mark-done etc. still unread; seed a read one to compare)
-db.prepare(
-  "INSERT INTO notifications(severity,text,read_at,created_at) VALUES('info','N3 read row',unixepoch(),unixepoch())",
-).run();
+await run(
+  "INSERT INTO notifications(severity,text,read_at,created_at) VALUES('info','N3 read row',now(),now())",
+);
 await page.goto(base + "/notifications");
 const readRow = page.locator('[data-notification][data-read="true"]').first();
 const readWeight = await readRow
@@ -167,16 +149,16 @@ ok(
 // ---------------------------------------------------------------------------
 const badge = page.locator("header [data-unread-badge]");
 ok("N4 badge visible before mark-all-read", (await badge.count()) === 1);
-const unreadBefore = db
-  .prepare("SELECT COUNT(*) c FROM notifications WHERE read_at IS NULL")
-  .get().c;
+const unreadBefore = Number(
+  (await get("SELECT COUNT(*) c FROM notifications WHERE read_at IS NULL")).c,
+);
 ok("N4 there are unread notifications before", unreadBefore > 0);
 
 await page.getByRole("button", { name: "Mark all as read" }).click();
 await page.waitForTimeout(700);
 ok(
   "N4 all notifications marked read",
-  db.prepare("SELECT COUNT(*) c FROM notifications WHERE read_at IS NULL").get().c === 0,
+  Number((await get("SELECT COUNT(*) c FROM notifications WHERE read_at IS NULL")).c) === 0,
 );
 await page.goto(base + "/notifications");
 ok("N4 badge gone after mark-all-read", (await page.locator("header [data-unread-badge]").count()) === 0);
@@ -195,14 +177,15 @@ ok(
 // Badge 9+ cap
 // ---------------------------------------------------------------------------
 for (let i = 0; i < 12; i++) {
-  db.prepare(
-    "INSERT INTO notifications(severity,text,created_at) VALUES('info',?,unixepoch())",
-  ).run(`9+ cap notif ${i}`);
+  await run(
+    "INSERT INTO notifications(severity,text,created_at) VALUES('info',$1,now())",
+    [`9+ cap notif ${i}`],
+  );
 }
 await page.goto(base + "/notifications");
 const capBadge = page.locator("header [data-unread-badge]");
 ok("cap badge visible with >9 unread", (await capBadge.count()) === 1);
 ok("cap badge shows 9+", (await capBadge.textContent())?.trim() === "9+");
 
-db.close();
+await close();
 await browser.close();

@@ -31,15 +31,13 @@ export async function createEvent(data: NewEvent) {
   const type: EventType = (EVENT_TYPES as readonly string[]).includes(data.type)
     ? (data.type as EventType)
     : "event";
-  db.insert(events)
-    .values({
-      date: data.date,
-      time: data.time?.trim() || null,
-      title,
-      type,
-      assigneeId: data.assigneeId ?? null,
-    })
-    .run();
+  await db.insert(events).values({
+    date: data.date,
+    time: data.time?.trim() || null,
+    title,
+    type,
+    assigneeId: data.assigneeId ?? null,
+  });
   revalidatePath("/plan");
   revalidatePath("/");
 }
@@ -55,7 +53,8 @@ export async function updateEvent(data: EditEvent) {
   const type: EventType = (EVENT_TYPES as readonly string[]).includes(data.type)
     ? (data.type as EventType)
     : "event";
-  db.update(events)
+  await db
+    .update(events)
     .set({
       date: data.date,
       time: data.time?.trim() || null,
@@ -63,15 +62,14 @@ export async function updateEvent(data: EditEvent) {
       type,
       assigneeId: data.assigneeId ?? null,
     })
-    .where(eq(events.id, data.id))
-    .run();
+    .where(eq(events.id, data.id));
   revalidatePath("/plan");
   revalidatePath("/");
 }
 
 export async function deleteEvent(id: number) {
   await requireUser();
-  db.delete(events).where(eq(events.id, id)).run();
+  await db.delete(events).where(eq(events.id, id));
   revalidatePath("/plan");
   revalidatePath("/");
 }
@@ -95,20 +93,20 @@ export async function createMeal(data: NewMeal) {
   const title = data.title.trim();
   if (!title || !data.date) return;
   const out = !!data.out;
-  const res = db
+  const [meal] = await db
     .insert(meals)
     .values({ date: data.date, title, cook: out ? false : !!data.cook, out })
-    .run();
-  const mealId = Number(res.lastInsertRowid);
+    .returning({ id: meals.id });
+  const mealId = meal.id;
   for (const ing of data.ingredients) {
     const name = ing.name.trim();
     if (!name) continue;
     const cat: GroceryCategory = isGroceryCategory(ing.category)
       ? ing.category
       : "produce";
-    db.insert(mealIngredients)
-      .values({ mealId, name, category: cat, qty: ing.qty?.trim() || null })
-      .run();
+    await db
+      .insert(mealIngredients)
+      .values({ mealId, name, category: cat, qty: ing.qty?.trim() || null });
   }
   revalidatePath("/plan");
 }
@@ -120,34 +118,30 @@ export async function createMeal(data: NewMeal) {
  */
 export async function addMealIngredientsToList(mealId: number) {
   await requireUser();
-  const ings = db
+  const ings = await db
     .select()
     .from(mealIngredients)
-    .where(eq(mealIngredients.mealId, mealId))
-    .all();
-  const active = db
+    .where(eq(mealIngredients.mealId, mealId));
+  const active = await db
     .select()
     .from(groceryItems)
-    .where(eq(groceryItems.checked, false))
-    .all();
+    .where(eq(groceryItems.checked, false));
   const have = new Set(active.map((g) => g.name.toLowerCase()));
   for (const ing of ings) {
     const key = ing.name.toLowerCase();
     if (have.has(key)) continue;
-    db.insert(groceryItems)
-      .values({
-        name: ing.name,
-        category: ing.category,
-        qty: ing.qty,
-        sourceMealId: mealId,
-      })
-      .run();
+    await db.insert(groceryItems).values({
+      name: ing.name,
+      category: ing.category,
+      qty: ing.qty,
+      sourceMealId: mealId,
+    });
     have.add(key);
   }
-  db.update(meals)
+  await db
+    .update(meals)
     .set({ ingredientsAddedAt: new Date() })
-    .where(eq(meals.id, mealId))
-    .run();
+    .where(eq(meals.id, mealId));
   revalidatePath("/plan");
   revalidatePath("/groceries");
 }

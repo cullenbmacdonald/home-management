@@ -7,7 +7,7 @@ import type { UpkeepRow, HistoryEntry } from "@/components/upkeep-list";
 export const dynamic = "force-dynamic";
 
 export default async function MaintenancePage() {
-  const items = listMaintenanceWithDue();
+  const items = await listMaintenanceWithDue();
   const user = await getCurrentUser();
 
   const rows: UpkeepRow[] = items.map((item) => ({
@@ -22,7 +22,7 @@ export default async function MaintenancePage() {
 
   const histories: Record<number, HistoryEntry[]> = {};
   for (const item of items) {
-    histories[item.id] = getMaintenanceHistory(item.id).map((h) => ({
+    histories[item.id] = (await getMaintenanceHistory(item.id)).map((h) => ({
       id: h.id,
       at: h.completedAt.toISOString(),
       by: h.by,

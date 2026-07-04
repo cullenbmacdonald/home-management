@@ -7,9 +7,9 @@ import { formatMoney } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default function WishlistPage() {
-  const allRooms = db.select().from(rooms).orderBy(asc(rooms.sortOrder)).all();
-  const items = db
+export default async function WishlistPage() {
+  const allRooms = await db.select().from(rooms).orderBy(asc(rooms.sortOrder));
+  const items = await db
     .select({
       id: wishlistItems.id,
       name: wishlistItems.name,
@@ -21,8 +21,7 @@ export default function WishlistPage() {
     })
     .from(wishlistItems)
     .leftJoin(rooms, eq(wishlistItems.roomId, rooms.id))
-    .orderBy(desc(wishlistItems.createdAt))
-    .all();
+    .orderBy(desc(wishlistItems.createdAt));
 
   const committed = items
     .filter((i) => i.status !== "considering" && i.price != null)

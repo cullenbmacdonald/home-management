@@ -27,23 +27,23 @@ export async function uploadDocument(formData: FormData) {
     Buffer.from(await file.arrayBuffer()),
   );
 
-  db.insert(documents)
-    .values({
-      title,
-      filename,
-      originalName: file.name,
-      mimeType: file.type || "application/octet-stream",
-      size: file.size,
-    })
-    .run();
+  await db.insert(documents).values({
+    title,
+    filename,
+    originalName: file.name,
+    mimeType: file.type || "application/octet-stream",
+    size: file.size,
+  });
   revalidatePath("/documents");
 }
 
 export async function deleteDocument(id: number) {
   await requireUser();
-  const doc = db.select().from(documents).where(eq(documents.id, id)).get();
+  const doc = (
+    await db.select().from(documents).where(eq(documents.id, id)).limit(1)
+  )[0];
   if (!doc) return;
-  db.delete(documents).where(eq(documents.id, id)).run();
+  await db.delete(documents).where(eq(documents.id, id));
   await fs.unlink(path.join(uploadsDir, doc.filename)).catch(() => {});
   revalidatePath("/documents");
 }

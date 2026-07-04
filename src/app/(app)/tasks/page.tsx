@@ -9,23 +9,21 @@ export const dynamic = "force-dynamic";
 const inputCls =
   "w-full rounded-[10px] border border-[#e7e5e4] bg-white px-3 py-2.5 text-[14px] text-[#1c1917] placeholder:text-[#a8a29e] focus:border-[#059669] focus:outline-none";
 
-export default function TasksPage() {
-  const allUsers = db.select().from(users).all();
+export default async function TasksPage() {
+  const allUsers = await db.select().from(users);
   const userMap = new Map(allUsers.map((u) => [u.id, u.displayName]));
 
-  const open = db
+  const open = await db
     .select()
     .from(tasks)
     .where(isNull(tasks.completedAt))
-    .orderBy(asc(tasks.dueDate), desc(tasks.createdAt))
-    .all();
-  const done = db
+    .orderBy(asc(tasks.dueDate), desc(tasks.createdAt));
+  const done = await db
     .select()
     .from(tasks)
     .where(isNotNull(tasks.completedAt))
     .orderBy(desc(tasks.completedAt))
-    .limit(20)
-    .all();
+    .limit(20);
 
   return (
     <div className="space-y-4">

@@ -1,10 +1,7 @@
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
-import path from "node:path";
+import { get, run, close } from "./db.mjs";
 
 const base = "http://localhost:3777";
-const dbPath = path.join(process.cwd(), "data", "homebase.db");
-const db = new Database(dbPath);
 
 const ok = (name, cond) => {
   console.log(cond ? `PASS ${name}` : `FAIL ${name}`);
@@ -49,25 +46,15 @@ ok(
 );
 
 // --- Seed needs-attention items ---
-const insItem = db.prepare(
-  "INSERT INTO maintenance_items (name, notes, interval_days, room_id, start_date, active) VALUES (?,?,?,?,?,1)",
-);
+const insItem = (name, notes, intervalDays, roomId, startDate) =>
+  get(
+    "INSERT INTO maintenance_items (name, notes, interval_days, room_id, start_date, active) VALUES ($1,$2,$3,$4,$5,true) RETURNING id",
+    [name, notes, intervalDays, roomId, startDate],
+  );
 // overdue: due = start(45d ago) + 30d interval => 15d overdue
-const overdueId = insItem.run(
-  "E2E Dash Overdue",
-  null,
-  30,
-  null,
-  isoDaysAgo(45),
-).lastInsertRowid;
+const overdueId = (await insItem("E2E Dash Overdue", null, 30, null, isoDaysAgo(45))).id;
 // due-soon: due = start(7d ago) + 10d interval => in 3d
-const soonId = insItem.run(
-  "E2E Dash Soon",
-  null,
-  10,
-  null,
-  isoDaysAgo(7),
-).lastInsertRowid;
+await insItem("E2E Dash Soon", null, 10, null, isoDaysAgo(7));
 
 await page.reload();
 await page.waitForTimeout(300);
@@ -91,26 +78,27 @@ ok("D1 overdue left border red", overdueBorder === "rgb(220, 38, 38)");
 ok("D1 due-soon left border amber", soonBorder === "rgb(217, 119, 6)");
 
 // --- D2: one-tap Done removes card + logs completion ---
-const logsBefore = db
-  .prepare("SELECT COUNT(*) c FROM maintenance_logs WHERE item_id=?")
-  .get(overdueId).c;
+const logCount = async () =>
+  Number(
+    (await get("SELECT COUNT(*) c FROM maintenance_logs WHERE item_id=$1", [overdueId])).c,
+  );
+const logsBefore = await logCount();
 await overdueCard.getByRole("button", { name: /Done/ }).click();
 await page.waitForTimeout(700);
 ok(
   "D2 done removes needs-attention card",
   (await page.locator('li', { hasText: "E2E Dash Overdue" }).count()) === 0,
 );
-const logsAfter = db
-  .prepare("SELECT COUNT(*) c FROM maintenance_logs WHERE item_id=?")
-  .get(overdueId).c;
+const logsAfter = await logCount();
 ok("D2 done creates maintenance log", logsAfter === logsBefore + 1);
 
 // --- D2b: short-interval (weekly) item leaves the dashboard when done ---
 // Regression: a flat 7-day due-soon window kept interval<=7d items in
 // "needs attention" forever, since done => next due <= 7 days away.
-db.prepare(
-  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES (?,?,?,1)",
-).run("E2E Weekly Chore", 7, isoDaysAgo(8));
+await run(
+  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES ($1,$2,$3,true)",
+  ["E2E Weekly Chore", 7, isoDaysAgo(8)],
+);
 await page.reload();
 await page.waitForTimeout(400);
 const weeklyCard = page.locator("li", { hasText: "E2E Weekly Chore" });
@@ -125,9 +113,10 @@ ok(
 // --- D2c: daily (interval=1) item leaves the dashboard when done ---
 // Regression: ceil(interval/2) window == 1 for daily items, so done => next
 // due 1 day away stayed inside the window. Window is now interval - 1.
-db.prepare(
-  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES (?,?,?,1)",
-).run("E2E Daily Chore", 1, isoDaysAgo(2));
+await run(
+  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES ($1,$2,$3,true)",
+  ["E2E Daily Chore", 1, isoDaysAgo(2)],
+);
 await page.reload();
 await page.waitForTimeout(400);
 const dailyCard = page.locator("li", { hasText: "E2E Daily Chore" });
@@ -140,9 +129,10 @@ ok(
 );
 
 // --- D3: today's events render (time + title) ---
-db.prepare(
-  "INSERT INTO events (date, time, title, type) VALUES (?,?,?,?)",
-).run(todayKey, "19:30", "E2E Dinner Party", "event");
+await run(
+  "INSERT INTO events (date, time, title, type) VALUES ($1,$2,$3,$4)",
+  [todayKey, "19:30", "E2E Dinner Party", "event"],
+);
 await page.reload();
 await page.waitForTimeout(300);
 const todaySection = page.locator("section", { hasText: "Today" });
@@ -151,14 +141,16 @@ ok("D3 today event title renders", todayText.includes("E2E Dinner Party"));
 ok("D3 today event time renders", todayText.includes("7:30p"));
 
 // --- D4: grocery progress bar reflects checked/total + navigates to Shop ---
-db.prepare("DELETE FROM grocery_items").run();
-const insG = db.prepare(
-  "INSERT INTO grocery_items (name, category, checked, is_staple) VALUES (?,?,?,0)",
-);
-insG.run("E2E G1", "produce", 1);
-insG.run("E2E G2", "produce", 0);
-insG.run("E2E G3", "pantry", 0);
-insG.run("E2E G4", "frozen", 0);
+await run("DELETE FROM grocery_items");
+const insG = (name, category, checked) =>
+  run(
+    "INSERT INTO grocery_items (name, category, checked, is_staple) VALUES ($1,$2,$3,false)",
+    [name, category, checked],
+  );
+await insG("E2E G1", "produce", true);
+await insG("E2E G2", "produce", false);
+await insG("E2E G3", "pantry", false);
+await insG("E2E G4", "frozen", false);
 await page.reload();
 await page.waitForTimeout(300);
 ok(
@@ -180,4 +172,4 @@ await page.waitForURL("**/groceries");
 ok("D4 grocery card navigates to Shop", page.url().endsWith("/groceries"));
 
 await browser.close();
-db.close();
+await close();

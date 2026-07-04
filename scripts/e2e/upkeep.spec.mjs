@@ -1,10 +1,7 @@
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
-import path from "node:path";
+import { get, run, close } from "./db.mjs";
 
 const base = "http://localhost:3777";
-const dbPath = path.join(process.cwd(), "data", "homebase.db");
-const db = new Database(dbPath);
 
 const ok = (name, cond) => {
   console.log(cond ? `PASS ${name}` : `FAIL ${name}`);
@@ -18,30 +15,37 @@ const isoDaysAgo = (n) => {
   return d.toISOString().slice(0, 10);
 };
 
-const cullen = db.prepare("SELECT id FROM users WHERE username='cullen'").get().id;
+const cullen = (await get("SELECT id FROM users WHERE username='cullen'")).id;
 const steph =
-  db.prepare("SELECT id FROM users WHERE username IN ('steph','partner') LIMIT 1").get()?.id ??
+  (await get("SELECT id FROM users WHERE username IN ('steph','partner') LIMIT 1"))?.id ??
   cullen;
-const kitchen = db.prepare("SELECT id FROM rooms WHERE name='Kitchen'").get().id;
+const kitchen = (await get("SELECT id FROM rooms WHERE name='Kitchen'")).id;
 
-const insItem = db.prepare(
-  "INSERT INTO maintenance_items (name, notes, interval_days, room_id, start_date, active) VALUES (?,?,?,?,?,1)",
-);
+const insItem = (name, notes, intervalDays, roomId, startDate) =>
+  get(
+    "INSERT INTO maintenance_items (name, notes, interval_days, room_id, start_date, active) VALUES ($1,$2,$3,$4,$5,true) RETURNING id",
+    [name, notes, intervalDays, roomId, startDate],
+  );
+const todayIso = today.toISOString().slice(0, 10);
 // overdue: nextDue = startDate + interval well in the past
-const overdueId = insItem.run("E2E Overdue item", "Filter needs a rinse", 30, null, isoDaysAgo(45)).lastInsertRowid;
+await insItem("E2E Overdue item", "Filter needs a rinse", 30, null, isoDaysAgo(45));
 // due in ~3 days: interval 10, start 7 days ago -> due in 3d
-const soonId = insItem.run("E2E Due soon item", null, 10, null, isoDaysAgo(7)).lastInsertRowid;
+await insItem("E2E Due soon item", null, 10, null, isoDaysAgo(7));
 // ok: interval 30, start today -> due in ~30d
-const okId = insItem.run("E2E Ok item", null, 30, null, today.toISOString().slice(0, 10)).lastInsertRowid;
+await insItem("E2E Ok item", null, 30, null, todayIso);
 // with room
-const roomId2 = insItem.run("E2E Room item", null, 42, kitchen, today.toISOString().slice(0, 10)).lastInsertRowid;
+await insItem("E2E Room item", null, 42, kitchen, todayIso);
 // with two-log history
-const histId = insItem.run("E2E History item", null, 30, null, today.toISOString().slice(0, 10)).lastInsertRowid;
-const nowEp = Math.floor(Date.now() / 1000);
-db.prepare("INSERT INTO maintenance_logs (item_id, completed_at, completed_by_id) VALUES (?,?,?)").run(
-  histId, nowEp - 2 * 86400, steph);
-db.prepare("INSERT INTO maintenance_logs (item_id, completed_at, completed_by_id) VALUES (?,?,?)").run(
-  histId, nowEp, cullen);
+const histId = (await insItem("E2E History item", null, 30, null, todayIso)).id;
+const nowMs = Date.now();
+await run(
+  "INSERT INTO maintenance_logs (item_id, completed_at, completed_by_id) VALUES ($1,$2,$3)",
+  [histId, new Date(nowMs - 2 * 86400 * 1000), steph],
+);
+await run(
+  "INSERT INTO maintenance_logs (item_id, completed_at, completed_by_id) VALUES ($1,$2,$3)",
+  [histId, new Date(nowMs), cullen],
+);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -157,4 +161,4 @@ await page.waitForTimeout(800);
 ok("U8 archive removes item", (await page.getByText("E2E Edited item").count()) === 0);
 
 await browser.close();
-db.close();
+await close();

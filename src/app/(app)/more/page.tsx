@@ -77,31 +77,40 @@ const icons: Record<string, ReactNode> = {
   ),
 };
 
-export default function MorePage() {
-  const openTasks = db
-    .select({ id: tasks.id })
-    .from(tasks)
-    .where(isNull(tasks.completedAt))
-    .all().length;
-  const activeWishlist = db
-    .select({ id: wishlistItems.id })
-    .from(wishlistItems)
-    .where(ne(wishlistItems.status, "delivered"))
-    .all().length;
-  const unread = db
-    .select({ id: notifications.id })
-    .from(notifications)
-    .where(isNull(notifications.readAt))
-    .all().length;
-  const inventoryCount = db.select({ id: inventoryItems.id }).from(inventoryItems).all().length;
-  const documentCount = db.select({ id: documents.id }).from(documents).all().length;
-  const contactCount = db.select({ id: vendors.id }).from(vendors).all().length;
+export default async function MorePage() {
+  const openTasks = (
+    await db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(isNull(tasks.completedAt))
+  ).length;
+  const activeWishlist = (
+    await db
+      .select({ id: wishlistItems.id })
+      .from(wishlistItems)
+      .where(ne(wishlistItems.status, "delivered"))
+  ).length;
+  const unread = (
+    await db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(isNull(notifications.readAt))
+  ).length;
+  const inventoryCount = (
+    await db.select({ id: inventoryItems.id }).from(inventoryItems)
+  ).length;
+  const documentCount = (
+    await db.select({ id: documents.id }).from(documents)
+  ).length;
+  const contactCount = (await db.select({ id: vendors.id }).from(vendors))
+    .length;
   const haConfigured =
-    db
-      .select({ key: settings.key })
-      .from(settings)
-      .where(inArray(settings.key, ["haBaseUrl", "haToken"]))
-      .all().length >= 2;
+    (
+      await db
+        .select({ key: settings.key })
+        .from(settings)
+        .where(inArray(settings.key, ["haBaseUrl", "haToken"]))
+    ).length >= 2;
 
   const tiles = [
     { key: "tasks", href: "/tasks", label: "Tasks", sub: `${openTasks} open`, iconBg: "#ecfdf5", iconFg: "#059669" },

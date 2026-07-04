@@ -1,12 +1,10 @@
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
-  dialect: "sqlite",
+  dialect: "postgresql",
   schema: "./src/db/schema.ts",
   out: "./drizzle",
   dbCredentials: {
-    url: process.env.DATA_DIR
-      ? `${process.env.DATA_DIR}/homebase.db`
-      : "./data/homebase.db",
+    url: process.env.DATABASE_URL ?? "postgres://localhost:5432/homebase",
   },
 });

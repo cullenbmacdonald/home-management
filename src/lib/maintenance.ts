@@ -27,7 +27,9 @@ export interface MaintenanceLogEntry {
 }
 
 /** Full completion history for one item, newest first. */
-export function getMaintenanceHistory(itemId: number): MaintenanceLogEntry[] {
+export async function getMaintenanceHistory(
+  itemId: number,
+): Promise<MaintenanceLogEntry[]> {
   return db
     .select({
       id: maintenanceLogs.id,
@@ -39,8 +41,7 @@ export function getMaintenanceHistory(itemId: number): MaintenanceLogEntry[] {
     .from(maintenanceLogs)
     .leftJoin(users, eq(maintenanceLogs.completedById, users.id))
     .where(eq(maintenanceLogs.itemId, itemId))
-    .orderBy(desc(maintenanceLogs.completedAt))
-    .all();
+    .orderBy(desc(maintenanceLogs.completedAt));
 }
 
 const DAY_MS = 86400_000;
@@ -54,8 +55,8 @@ export function dueSoonWindowDays(intervalDays: number): number {
   return Math.min(7, intervalDays - 1);
 }
 
-export function listMaintenanceWithDue(): MaintenanceWithDue[] {
-  const items = db
+export async function listMaintenanceWithDue(): Promise<MaintenanceWithDue[]> {
+  const items = await db
     .select({
       id: maintenanceItems.id,
       name: maintenanceItems.name,
@@ -67,22 +68,22 @@ export function listMaintenanceWithDue(): MaintenanceWithDue[] {
     })
     .from(maintenanceItems)
     .leftJoin(rooms, eq(maintenanceItems.roomId, rooms.id))
-    .where(eq(maintenanceItems.active, true))
-    .all();
+    .where(eq(maintenanceItems.active, true));
 
   const now = new Date();
-  const result = items.map((item) => {
-    const lastLog = db
-      .select({
-        completedAt: maintenanceLogs.completedAt,
-        by: users.displayName,
-      })
-      .from(maintenanceLogs)
-      .leftJoin(users, eq(maintenanceLogs.completedById, users.id))
-      .where(eq(maintenanceLogs.itemId, item.id))
-      .orderBy(desc(maintenanceLogs.completedAt))
-      .limit(1)
-      .get();
+  const result = await Promise.all(items.map(async (item) => {
+    const lastLog = (
+      await db
+        .select({
+          completedAt: maintenanceLogs.completedAt,
+          by: users.displayName,
+        })
+        .from(maintenanceLogs)
+        .leftJoin(users, eq(maintenanceLogs.completedById, users.id))
+        .where(eq(maintenanceLogs.itemId, item.id))
+        .orderBy(desc(maintenanceLogs.completedAt))
+        .limit(1)
+    )[0];
 
     const anchor = lastLog
       ? lastLog.completedAt
@@ -109,7 +110,7 @@ export function listMaintenanceWithDue(): MaintenanceWithDue[] {
       daysUntilDue,
       status,
     };
-  });
+  }));
 
   return result.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
 }

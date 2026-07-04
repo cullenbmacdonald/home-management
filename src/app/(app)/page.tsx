@@ -25,13 +25,13 @@ const labelCls =
 export default async function DashboardPage() {
   const user = await getCurrentUser();
 
-  const maintenance = listMaintenanceWithDue();
+  const maintenance = await listMaintenanceWithDue();
   const needsAttention = maintenance.filter((m) => m.status !== "ok");
 
   const todayKey = toYMD(new Date());
-  const todayEvents = buildEventsByDate([todayKey], todayKey)[todayKey];
+  const todayEvents = (await buildEventsByDate([todayKey], todayKey))[todayKey];
 
-  const groceries = db.select().from(groceryItems).all();
+  const groceries = await db.select().from(groceryItems);
   const groceryTotal = groceries.length;
   const groceryChecked = groceries.filter((g) => g.checked).length;
   const groceryPct = groceryTotal ? (groceryChecked / groceryTotal) * 100 : 0;

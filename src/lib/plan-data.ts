@@ -22,14 +22,14 @@ export interface DerivedEvent {
  * on `overdueKey` (typically today); on-time upkeep on its exact due day.
  * Each day is sorted timed-first (ascending), untimed (incl. upkeep) last.
  */
-export function buildEventsByDate(
+export async function buildEventsByDate(
   keys: string[],
   overdueKey: string,
-): Record<string, DerivedEvent[]> {
+): Promise<Record<string, DerivedEvent[]>> {
   const byDate: Record<string, DerivedEvent[]> = {};
   for (const key of keys) byDate[key] = [];
 
-  const evRows = db
+  const evRows = await db
     .select({
       id: events.id,
       date: events.date,
@@ -41,8 +41,7 @@ export function buildEventsByDate(
     })
     .from(events)
     .leftJoin(users, eq(events.assigneeId, users.id))
-    .where(inArray(events.date, keys))
-    .all();
+    .where(inArray(events.date, keys));
 
   for (const e of evRows) {
     byDate[e.date]?.push({
@@ -56,7 +55,7 @@ export function buildEventsByDate(
     });
   }
 
-  for (const m of listMaintenanceWithDue()) {
+  for (const m of await listMaintenanceWithDue()) {
     const key = m.daysUntilDue < 0 ? overdueKey : toYMD(m.nextDue);
     if (!byDate[key]) continue;
     byDate[key].push({

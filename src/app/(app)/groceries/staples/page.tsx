@@ -6,8 +6,8 @@ import { StaplesManager, type StapleRow } from "@/components/staples-manager";
 
 export const dynamic = "force-dynamic";
 
-export default function StaplesPage() {
-  const rows = db.select().from(staples).orderBy(asc(staples.name)).all();
+export default async function StaplesPage() {
+  const rows = await db.select().from(staples).orderBy(asc(staples.name));
   const items: StapleRow[] = rows.map((r) => ({
     id: r.id,
     name: r.name,

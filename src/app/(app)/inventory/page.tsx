@@ -6,9 +6,9 @@ import { InventoryCard } from "@/components/inventory-card";
 
 export const dynamic = "force-dynamic";
 
-export default function InventoryPage() {
-  const allRooms = db.select().from(rooms).orderBy(asc(rooms.sortOrder)).all();
-  const items = db
+export default async function InventoryPage() {
+  const allRooms = await db.select().from(rooms).orderBy(asc(rooms.sortOrder));
+  const items = await db
     .select({
       id: inventoryItems.id,
       name: inventoryItems.name,
@@ -23,8 +23,7 @@ export default function InventoryPage() {
     })
     .from(inventoryItems)
     .leftJoin(rooms, eq(inventoryItems.roomId, rooms.id))
-    .orderBy(asc(inventoryItems.name))
-    .all();
+    .orderBy(asc(inventoryItems.name));
 
   return (
     <div className="space-y-4">

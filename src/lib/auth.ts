@@ -11,7 +11,7 @@ const SESSION_DAYS = 90;
 export async function createSession(userId: number) {
   const id = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400_000);
-  db.insert(sessions).values({ id, userId, expiresAt }).run();
+  await db.insert(sessions).values({ id, userId, expiresAt });
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, id, {
     httpOnly: true,
@@ -25,7 +25,7 @@ export async function createSession(userId: number) {
 export async function destroySession() {
   const cookieStore = await cookies();
   const id = cookieStore.get(SESSION_COOKIE)?.value;
-  if (id) db.delete(sessions).where(eq(sessions.id, id)).run();
+  if (id) await db.delete(sessions).where(eq(sessions.id, id));
   cookieStore.delete(SESSION_COOKIE);
 }
 
@@ -33,18 +33,20 @@ export const getCurrentUser = cache(async () => {
   const cookieStore = await cookies();
   const id = cookieStore.get(SESSION_COOKIE)?.value;
   if (!id) return null;
-  const row = db
-    .select({
-      userId: users.id,
-      username: users.username,
-      displayName: users.displayName,
-      accentColor: users.accentColor,
-      expiresAt: sessions.expiresAt,
-    })
-    .from(sessions)
-    .innerJoin(users, eq(sessions.userId, users.id))
-    .where(eq(sessions.id, id))
-    .get();
+  const row = (
+    await db
+      .select({
+        userId: users.id,
+        username: users.username,
+        displayName: users.displayName,
+        accentColor: users.accentColor,
+        expiresAt: sessions.expiresAt,
+      })
+      .from(sessions)
+      .innerJoin(users, eq(sessions.userId, users.id))
+      .where(eq(sessions.id, id))
+      .limit(1)
+  )[0];
   if (!row || row.expiresAt < new Date()) return null;
   return {
     id: row.userId,

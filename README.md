@@ -23,7 +23,7 @@ Features:
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind
-- SQLite via Drizzle ORM (single file in `data/`, WAL mode)
+- PostgreSQL via Drizzle ORM (external instance, one DB/schema per app)
 - Simple cookie-session auth, two seeded accounts
 - Self-hosted via Docker
 
@@ -31,13 +31,14 @@ Features:
 
 ```bash
 npm install
+export DATABASE_URL=postgres://user:pass@localhost:5432/homebase
 npm run dev        # http://localhost:3000
 ```
 
-The database is created, migrated, and seeded automatically on first run
-(`data/homebase.db`). Default logins: `cullen` / `changeme` and
-`steph` / `changeme` — override with `USER1_*` / `USER2_*` env vars before
-first boot.
+Point `DATABASE_URL` at a Postgres database. The schema is migrated and seeded
+automatically on first server boot (via Next `instrumentation`). Default logins:
+`cullen` / `changeme` and `steph` / `changeme` — override with `USER1_*` /
+`USER2_*` env vars before first boot.
 
 Schema changes: edit `src/db/schema.ts`, then `npm run db:generate` to create a
 migration (applied automatically at startup).
@@ -49,10 +50,11 @@ npm run seed:demo
 ```
 
 End-to-end tests (Playwright) live in `scripts/e2e/`. Run the server on :3777
-against a fresh DB, then:
+against a fresh Postgres database, then:
 
 ```bash
-rm -rf data && PORT=3777 npm start &   # wait for boot
+DATABASE_URL=postgres://user:pass@localhost:5432/homebase_test \
+  PORT=3777 node .next/standalone/server.js &   # wait for boot
 npm run e2e
 ```
 
@@ -66,8 +68,9 @@ guarantees.
 USER1_PASSWORD=... USER2_PASSWORD=... docker compose up -d --build
 ```
 
-Data (SQLite DB + uploaded documents) lives in the `homebase-data` volume,
-mounted at `/data`. Back that up and you've backed up everything.
+Set `DATABASE_URL` to a database on your Postgres instance (see
+`docker-compose.yml`). Uploaded documents live in the `homebase-data` volume at
+`/data`; the rest of the data lives in Postgres. Back up both.
 
 ## Layout
 

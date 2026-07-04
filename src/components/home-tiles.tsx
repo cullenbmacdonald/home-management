@@ -8,7 +8,7 @@ import { HaDashboardTiles } from "@/components/ha-dashboard-tiles";
  * to a small error chip when HA is unreachable.
  */
 export async function HomeTiles() {
-  const configured = isHaConfigured();
+  const configured = await isHaConfigured();
 
   return (
     <section>

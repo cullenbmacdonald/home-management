@@ -6,7 +6,7 @@ import { markAllRead } from "@/lib/notifications";
 
 export async function markAllNotificationsRead() {
   await requireUser();
-  markAllRead();
+  await markAllRead();
   revalidatePath("/notifications");
   revalidatePath("/more");
   revalidatePath("/", "layout");

@@ -1,10 +1,7 @@
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
-import path from "node:path";
+import { all, get, run, close } from "./db.mjs";
 
 const base = "http://localhost:3777";
-const dbPath = path.join(process.cwd(), "data", "homebase.db");
-const db = new Database(dbPath);
 
 const ok = (name, cond) => {
   console.log(cond ? `PASS ${name}` : `FAIL ${name}`);
@@ -77,11 +74,13 @@ const iH = labels.indexOf("Household");
 ok("S2 aisle order Produce<Pantry<Household", iP < iPan && iPan < iH && iP >= 0);
 
 // "N left" header matches the DB's unchecked count for that aisle.
-const produceLeft = db
-  .prepare(
-    "SELECT COUNT(*) c FROM grocery_items WHERE category='produce' AND checked=0",
-  )
-  .get().c;
+const produceLeft = Number(
+  (
+    await get(
+      "SELECT COUNT(*) c FROM grocery_items WHERE category='produce' AND checked=false",
+    )
+  ).c,
+);
 const produceGroup = page.locator("div.mb-5").filter({ hasText: "Produce" }).first();
 ok(
   "S2 N-left count",
@@ -117,9 +116,10 @@ ok(
 );
 
 // --- S4: STAPLE tag + qty display (insert a staple+qty item via DB) ---
-db.prepare(
-  "INSERT INTO grocery_items (name, category, qty, checked, is_staple) VALUES (?,?,?,?,?)",
-).run("E2E StapleQty", "produce", "2 lb", 0, 1);
+await run(
+  "INSERT INTO grocery_items (name, category, qty, checked, is_staple) VALUES ($1,$2,$3,false,true)",
+  ["E2E StapleQty", "produce", "2 lb"],
+);
 await page.reload();
 await page.waitForTimeout(400);
 const stapleRow = page
@@ -143,7 +143,7 @@ ok(
 );
 
 // --- S5: restock staples (empty -> 10; check/delete -> re-add no dupes) ---
-db.prepare("DELETE FROM grocery_items").run();
+await run("DELETE FROM grocery_items");
 await page.reload();
 await page.waitForTimeout(400);
 ok(
@@ -152,13 +152,13 @@ ok(
 );
 await page.getByRole("button", { name: /Restock staples/ }).click();
 await page.waitForTimeout(600);
-const stapleCount = db
-  .prepare("SELECT COUNT(*) c FROM grocery_items WHERE is_staple=1")
-  .get().c;
+const stapleCount = Number(
+  (await get("SELECT COUNT(*) c FROM grocery_items WHERE is_staple=true")).c,
+);
 ok("S5 restock adds 10 staples", stapleCount === 10);
-const checkedAfterRestock = db
-  .prepare("SELECT COUNT(*) c FROM grocery_items WHERE checked=1")
-  .get().c;
+const checkedAfterRestock = Number(
+  (await get("SELECT COUNT(*) c FROM grocery_items WHERE checked=true")).c,
+);
 ok("S5 restocked staples unchecked", checkedAfterRestock === 0);
 
 // check one staple, delete another, then restock again
@@ -171,22 +171,20 @@ await delBtns.nth(1).click();
 await page.waitForTimeout(400);
 ok(
   "S5 after check+delete count is 9",
-  db.prepare("SELECT COUNT(*) c FROM grocery_items").get().c === 9,
+  Number((await get("SELECT COUNT(*) c FROM grocery_items")).c) === 9,
 );
 await page.getByRole("button", { name: /Restock staples/ }).click();
 await page.waitForTimeout(600);
-const finalCount = db.prepare("SELECT COUNT(*) c FROM grocery_items").get().c;
+const finalCount = Number((await get("SELECT COUNT(*) c FROM grocery_items")).c);
 ok("S5 re-restock no duplicates (10 total)", finalCount === 10);
-const dupes = db
-  .prepare(
-    "SELECT name, COUNT(*) c FROM grocery_items GROUP BY LOWER(name) HAVING c>1",
-  )
-  .all();
+const dupes = await all(
+  "SELECT LOWER(name) name, COUNT(*) c FROM grocery_items GROUP BY LOWER(name) HAVING COUNT(*)>1",
+);
 ok("S5 no duplicate staple names", dupes.length === 0);
-const stillChecked = db
-  .prepare("SELECT COUNT(*) c FROM grocery_items WHERE checked=1")
-  .get().c;
+const stillChecked = Number(
+  (await get("SELECT COUNT(*) c FROM grocery_items WHERE checked=true")).c,
+);
 ok("S5 previously checked staple now unchecked", stillChecked === 0);
 
 await browser.close();
-db.close();
+await close();

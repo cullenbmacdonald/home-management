@@ -6,8 +6,8 @@ import { listMaintenanceWithDue } from "@/lib/maintenance";
 export type Severity = "overdue" | "due-soon" | "info" | "success";
 
 /** Insert a notification. Returns nothing; callers revalidate as needed. */
-export function createNotification(severity: Severity, text: string) {
-  db.insert(notifications).values({ severity, text }).run();
+export async function createNotification(severity: Severity, text: string) {
+  await db.insert(notifications).values({ severity, text });
 }
 
 /** YYYY-MM-DD for the local day. */
@@ -15,20 +15,22 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function getSetting(key: string): string | null {
-  const row = db
-    .select({ value: settings.value })
-    .from(settings)
-    .where(eq(settings.key, key))
-    .get();
+async function getSetting(key: string): Promise<string | null> {
+  const row = (
+    await db
+      .select({ value: settings.value })
+      .from(settings)
+      .where(eq(settings.key, key))
+      .limit(1)
+  )[0];
   return row?.value ?? null;
 }
 
-function setSetting(key: string, value: string) {
-  db.insert(settings)
+async function setSetting(key: string, value: string) {
+  await db
+    .insert(settings)
     .values({ key, value })
-    .onConflictDoUpdate({ target: settings.key, set: { value } })
-    .run();
+    .onConflictDoUpdate({ target: settings.key, set: { value } });
 }
 
 /** Start of the local day, as a Date (for "created today" dedupe). */
@@ -44,8 +46,8 @@ function startOfToday(): Date {
  * was already created today, it is skipped, so a same-day double-run never
  * duplicates. Records the sweep date in settings ('lastDueSweep').
  */
-export function runDueSweep() {
-  const items = listMaintenanceWithDue();
+export async function runDueSweep() {
+  const items = await listMaintenanceWithDue();
   const dayStart = startOfToday();
 
   for (const item of items) {
@@ -67,28 +69,30 @@ export function runDueSweep() {
       }`;
     }
 
-    const existing = db
-      .select({ id: notifications.id })
-      .from(notifications)
-      .where(
-        and(
-          eq(notifications.text, text),
-          gte(notifications.createdAt, dayStart),
-        ),
-      )
-      .get();
+    const existing = (
+      await db
+        .select({ id: notifications.id })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.text, text),
+            gte(notifications.createdAt, dayStart),
+          ),
+        )
+        .limit(1)
+    )[0];
     if (existing) continue;
 
-    createNotification(severity, text);
+    await createNotification(severity, text);
   }
 
-  setSetting("lastDueSweep", today());
+  await setSetting("lastDueSweep", today());
 }
 
 /** Run the sweep at most once per local day (cheap guard for the layout). */
-export function runDueSweepIfDue() {
-  if (getSetting("lastDueSweep") === today()) return;
-  runDueSweep();
+export async function runDueSweepIfDue() {
+  if ((await getSetting("lastDueSweep")) === today()) return;
+  await runDueSweep();
 }
 
 export interface NotificationRow {
@@ -100,8 +104,8 @@ export interface NotificationRow {
 }
 
 /** Feed, newest first. */
-export function listNotifications(): NotificationRow[] {
-  return db
+export async function listNotifications(): Promise<NotificationRow[]> {
+  const rows = await db
     .select({
       id: notifications.id,
       severity: notifications.severity,
@@ -110,30 +114,29 @@ export function listNotifications(): NotificationRow[] {
       createdAt: notifications.createdAt,
     })
     .from(notifications)
-    .orderBy(desc(notifications.createdAt), desc(notifications.id))
-    .all()
-    .map((r) => ({
-      id: r.id,
-      severity: r.severity as Severity,
-      text: r.text,
-      read: r.readAt !== null,
-      createdAt: r.createdAt,
-    }));
+    .orderBy(desc(notifications.createdAt), desc(notifications.id));
+  return rows.map((r) => ({
+    id: r.id,
+    severity: r.severity as Severity,
+    text: r.text,
+    read: r.readAt !== null,
+    createdAt: r.createdAt,
+  }));
 }
 
-export function unreadCount(): number {
-  return db
+export async function unreadCount(): Promise<number> {
+  const rows = await db
     .select({ id: notifications.id })
     .from(notifications)
-    .where(isNull(notifications.readAt))
-    .all().length;
+    .where(isNull(notifications.readAt));
+  return rows.length;
 }
 
-export function markAllRead() {
-  db.update(notifications)
+export async function markAllRead() {
+  await db
+    .update(notifications)
     .set({ readAt: new Date() })
-    .where(isNull(notifications.readAt))
-    .run();
+    .where(isNull(notifications.readAt));
 }
 
 // severity → dot color, per design handoff

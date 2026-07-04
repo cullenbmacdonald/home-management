@@ -22,12 +22,11 @@ export interface HaConfig {
 }
 
 /** Reads config from settings; null unless both base URL and token are set. */
-export function getHaConfig(): HaConfig | null {
-  const rows = db
+export async function getHaConfig(): Promise<HaConfig | null> {
+  const rows = await db
     .select()
     .from(settings)
-    .where(inArray(settings.key, ["haBaseUrl", "haToken", "haEntities"]))
-    .all();
+    .where(inArray(settings.key, ["haBaseUrl", "haToken", "haEntities"]));
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Record<
     string,
     string | undefined
@@ -45,15 +44,15 @@ export function getHaConfig(): HaConfig | null {
   return { baseUrl, token, entities };
 }
 
-export function isHaConfigured(): boolean {
-  return getHaConfig() !== null;
+export async function isHaConfigured(): Promise<boolean> {
+  return (await getHaConfig()) !== null;
 }
 
 type StatesResult = { ok: true; states: HaState[] } | { ok: false };
 
 /** GET /api/states, filtered to configured entity ids. 5s timeout. */
 export async function getStates(): Promise<StatesResult> {
-  const cfg = getHaConfig();
+  const cfg = await getHaConfig();
   if (!cfg) return { ok: false };
   try {
     const controller = new AbortController();
@@ -82,7 +81,7 @@ export async function callService(
   service: string,
   data: Record<string, unknown>,
 ): Promise<boolean> {
-  const cfg = getHaConfig();
+  const cfg = await getHaConfig();
   if (!cfg) return false;
   try {
     const controller = new AbortController();

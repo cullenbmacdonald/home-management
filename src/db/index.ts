@@ -1,21 +1,21 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import path from "path";
 import fs from "fs";
 import * as schema from "./schema";
 
+// `dataDir` still backs on-disk uploads (documents); the database itself now
+// lives in an external Postgres instance addressed by DATABASE_URL.
 const dataDir = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
 fs.mkdirSync(dataDir, { recursive: true });
 
-const sqlite = new Database(path.join(dataDir, "homebase.db"));
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
+const connectionString =
+  process.env.DATABASE_URL ?? "postgres://localhost:5432/homebase";
 
-export const db = drizzle(sqlite, { schema });
-export { dataDir };
+// Reuse a single pool across hot-reloads in dev to avoid exhausting connections.
+const globalForDb = globalThis as unknown as { __pgPool?: Pool };
+const pool = globalForDb.__pgPool ?? new Pool({ connectionString });
+if (process.env.NODE_ENV !== "production") globalForDb.__pgPool = pool;
 
-// Apply migrations and first-run seed on startup (no-ops when already done)
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { seedIfEmpty } from "./seed";
-migrate(db, { migrationsFolder: path.join(process.cwd(), "drizzle") });
-seedIfEmpty(db);
+export const db = drizzle(pool, { schema });
+export { dataDir, pool };

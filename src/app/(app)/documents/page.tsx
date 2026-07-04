@@ -6,12 +6,11 @@ import { DocumentRow } from "@/components/document-row";
 
 export const dynamic = "force-dynamic";
 
-export default function DocumentsPage() {
-  const docs = db
+export default async function DocumentsPage() {
+  const docs = await db
     .select()
     .from(documents)
-    .orderBy(desc(documents.uploadedAt))
-    .all();
+    .orderBy(desc(documents.uploadedAt));
 
   return (
     <div className="space-y-4">

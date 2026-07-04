@@ -6,8 +6,8 @@ import { VendorRow } from "@/components/vendor-row";
 
 export const dynamic = "force-dynamic";
 
-export default function VendorsPage() {
-  const all = db.select().from(vendors).orderBy(asc(vendors.name)).all();
+export default async function VendorsPage() {
+  const all = await db.select().from(vendors).orderBy(asc(vendors.name));
 
   return (
     <div className="space-y-4">

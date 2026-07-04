@@ -46,14 +46,14 @@ export default async function PlanPage({
 
   // Overdue upkeep lands on today only when today is on screen.
   const overdueKey = monthKeys.includes(todayKey) ? todayKey : firstInMonth;
-  const eventsByDate = buildEventsByDate(monthKeys, overdueKey);
+  const eventsByDate = await buildEventsByDate(monthKeys, overdueKey);
 
   // Meals tab stays on the current week.
   const week = getWeekDays(today);
   const keys = week.map((d) => d.date);
-  const mealRows = db.select().from(meals).where(inArray(meals.date, keys)).all();
+  const mealRows = await db.select().from(meals).where(inArray(meals.date, keys));
   const ingRows = mealRows.length
-    ? db
+    ? await db
         .select()
         .from(mealIngredients)
         .where(
@@ -62,7 +62,6 @@ export default async function PlanPage({
             mealRows.map((m) => m.id),
           ),
         )
-        .all()
     : [];
   const mealsByDate: Record<string, MealVM> = {};
   for (const m of mealRows) {
@@ -79,10 +78,9 @@ export default async function PlanPage({
     };
   }
 
-  const userOptions: UserOption[] = db
+  const userOptions: UserOption[] = await db
     .select({ id: users.id, displayName: users.displayName })
-    .from(users)
-    .all();
+    .from(users);
 
   return (
     <PlanView

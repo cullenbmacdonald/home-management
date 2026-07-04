@@ -5,7 +5,7 @@ import { HaHome } from "@/components/ha-home";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  if (!isHaConfigured()) {
+  if (!(await isHaConfigured())) {
     return (
       <Link
         href="/settings"

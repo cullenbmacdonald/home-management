@@ -2,7 +2,7 @@
 // data mirroring the design prototype, dated relative to the current week.
 // Idempotent per run — it clears and refills those four tables each time.
 // Usage: npm run seed:demo
-import { db } from "../src/db";
+import { db, pool } from "../src/db";
 import {
   groceryItems,
   meals,
@@ -32,17 +32,6 @@ function weekDate(offset: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-const allUsers = db.select().from(users).all();
-const idByName = (name: string) =>
-  allUsers.find((u) => u.displayName === name)?.id ?? null;
-
-// --- clear the four demo tables (children first) ---
-db.delete(mealIngredients).run();
-db.delete(meals).run();
-db.delete(groceryItems).run();
-db.delete(events).run();
-db.delete(notifications).run();
-
 // --- groceries (prototype list) ---
 const grocery: [string, string, string, boolean, boolean][] = [
   ["Bananas", "Produce", "", true, true],
@@ -66,11 +55,6 @@ const grocery: [string, string, string, boolean, boolean][] = [
   ["Paper towels", "Household", "", false, true],
   ["Trash bags", "Household", "", false, true],
 ];
-for (const [name, cat, qty, checked, isStaple] of grocery) {
-  db.insert(groceryItems)
-    .values({ name, category: CAT[cat], qty: qty || null, checked, isStaple })
-    .run();
-}
 
 // --- meals (Mon..Sun of this week) ---
 const mealSeed: {
@@ -88,18 +72,6 @@ const mealSeed: {
   { offset: 5, title: "Farmers market veg bowls", cook: true, out: false, ingredients: [["Farro", "Pantry", "1 bag"], ["Seasonal veg", "Produce", ""], ["Feta", "Dairy & Eggs", ""]] },
   { offset: 6, title: "Batch chili (meal prep)", cook: true, out: false, ingredients: [["Ground turkey", "Meat & Fish", "2 lb"], ["Canned tomatoes", "Pantry", "3"], ["Kidney beans", "Pantry", "2 cans"], ["Onions", "Produce", "2"]] },
 ];
-for (const m of mealSeed) {
-  const res = db
-    .insert(meals)
-    .values({ date: weekDate(m.offset), title: m.title, cook: m.cook, out: m.out })
-    .run();
-  const mealId = Number(res.lastInsertRowid);
-  for (const [name, cat, qty] of m.ingredients) {
-    db.insert(mealIngredients)
-      .values({ mealId, name, category: CAT[cat], qty: qty || null })
-      .run();
-  }
-}
 
 // --- events (this week; upkeep-typed rows are derived, so omitted) ---
 const eventSeed: {
@@ -122,17 +94,6 @@ const eventSeed: {
   { offset: 6, time: "16:00", title: "Meal prep — batch chili", type: "chore", who: "" },
   { offset: 6, time: "19:00", title: "Building board meeting", type: "event", who: "" },
 ];
-for (const e of eventSeed) {
-  db.insert(events)
-    .values({
-      date: weekDate(e.offset),
-      time: e.time || null,
-      title: e.title,
-      type: e.type,
-      assigneeId: e.who ? idByName(e.who) : null,
-    })
-    .run();
-}
 
 // --- notifications ---
 const notifSeed: {
@@ -147,15 +108,64 @@ const notifSeed: {
   { severity: "success", text: "Cullen completed “Flush drain traps”", read: true },
   { severity: "success", text: "Steph moved “Walnut dining chairs” to Ordered", read: true },
 ];
-for (const n of notifSeed) {
-  db.insert(notifications)
-    .values({ severity: n.severity, text: n.text, readAt: n.read ? new Date() : null })
-    .run();
+
+async function main() {
+  const allUsers = await db.select().from(users);
+  const idByName = (name: string) =>
+    allUsers.find((u) => u.displayName === name)?.id ?? null;
+
+  // --- clear the four demo tables (children first) ---
+  await db.delete(mealIngredients);
+  await db.delete(meals);
+  await db.delete(groceryItems);
+  await db.delete(events);
+  await db.delete(notifications);
+
+  for (const [name, cat, qty, checked, isStaple] of grocery) {
+    await db
+      .insert(groceryItems)
+      .values({ name, category: CAT[cat], qty: qty || null, checked, isStaple });
+  }
+
+  for (const m of mealSeed) {
+    const [meal] = await db
+      .insert(meals)
+      .values({ date: weekDate(m.offset), title: m.title, cook: m.cook, out: m.out })
+      .returning({ id: meals.id });
+    for (const [name, cat, qty] of m.ingredients) {
+      await db
+        .insert(mealIngredients)
+        .values({ mealId: meal.id, name, category: CAT[cat], qty: qty || null });
+    }
+  }
+
+  for (const e of eventSeed) {
+    await db.insert(events).values({
+      date: weekDate(e.offset),
+      time: e.time || null,
+      title: e.title,
+      type: e.type,
+      assigneeId: e.who ? idByName(e.who) : null,
+    });
+  }
+
+  for (const n of notifSeed) {
+    await db
+      .insert(notifications)
+      .values({ severity: n.severity, text: n.text, readAt: n.read ? new Date() : null });
+  }
+
+  console.log("demo seed complete:", {
+    grocery: grocery.length,
+    meals: mealSeed.length,
+    events: eventSeed.length,
+    notifications: notifSeed.length,
+  });
+
+  await pool.end();
 }
 
-console.log("demo seed complete:", {
-  grocery: grocery.length,
-  meals: mealSeed.length,
-  events: eventSeed.length,
-  notifications: notifSeed.length,
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });

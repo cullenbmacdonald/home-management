@@ -5,8 +5,8 @@ import { ShopList, type ShopRow } from "@/components/shop-list";
 
 export const dynamic = "force-dynamic";
 
-export default function GroceriesPage() {
-  const rows = db.select().from(groceryItems).all();
+export default async function GroceriesPage() {
+  const rows = await db.select().from(groceryItems);
   const items: ShopRow[] = rows.map((r) => ({
     id: r.id,
     name: r.name,

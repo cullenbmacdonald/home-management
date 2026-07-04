@@ -21,11 +21,10 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  const rows = db
+  const rows = await db
     .select()
     .from(settings)
-    .where(inArray(settings.key, ["haBaseUrl", "haToken", "haEntities"]))
-    .all();
+    .where(inArray(settings.key, ["haBaseUrl", "haToken", "haEntities"]));
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Record<
     string,
     string | undefined
@@ -40,7 +39,7 @@ export default async function SettingsPage() {
     entities = "";
   }
 
-  const configured = isHaConfigured();
+  const configured = await isHaConfigured();
   const connection = configured ? await getStates() : null;
   const connectionOk = connection?.ok ?? false;
 
@@ -124,9 +123,9 @@ export default async function SettingsPage() {
       <section className="space-y-2">
         <h2 className={`${HEADING} mx-1`}>Backup</h2>
         <div className={`${CARD} text-[13px] leading-[1.5] text-[#78716c]`}>
-          All your data lives in the <code>/data</code> volume (SQLite database
-          plus uploaded documents). Back up that volume and you have backed up
-          the entire app.
+          App data lives in your Postgres database; uploaded documents live in
+          the <code>/data</code> volume. Back up both and you have backed up the
+          entire app.
         </div>
       </section>
     </div>

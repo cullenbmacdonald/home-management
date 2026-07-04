@@ -12,36 +12,36 @@ export async function createTask(formData: FormData) {
   if (!title) return;
   const assignee = Number(formData.get("assigneeId"));
   const dueDate = String(formData.get("dueDate") ?? "");
-  db.insert(tasks)
-    .values({
-      title,
-      assigneeId: assignee || null,
-      dueDate: dueDate || null,
-    })
-    .run();
+  await db.insert(tasks).values({
+    title,
+    assigneeId: assignee || null,
+    dueDate: dueDate || null,
+  });
   revalidatePath("/tasks");
   revalidatePath("/");
 }
 
 export async function toggleTask(id: number) {
   const user = await requireUser();
-  const task = db.select().from(tasks).where(eq(tasks.id, id)).get();
+  const task = (
+    await db.select().from(tasks).where(eq(tasks.id, id)).limit(1)
+  )[0];
   if (!task) return;
-  db.update(tasks)
+  await db
+    .update(tasks)
     .set(
       task.completedAt
         ? { completedAt: null, completedById: null }
         : { completedAt: new Date(), completedById: user.id },
     )
-    .where(eq(tasks.id, id))
-    .run();
+    .where(eq(tasks.id, id));
   revalidatePath("/tasks");
   revalidatePath("/");
 }
 
 export async function deleteTask(id: number) {
   await requireUser();
-  db.delete(tasks).where(eq(tasks.id, id)).run();
+  await db.delete(tasks).where(eq(tasks.id, id));
   revalidatePath("/tasks");
   revalidatePath("/");
 }

@@ -12,7 +12,9 @@ export async function login(_prev: string | null, formData: FormData) {
     .trim()
     .toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const user = db.select().from(users).where(eq(users.username, username)).get();
+  const user = (
+    await db.select().from(users).where(eq(users.username, username)).limit(1)
+  )[0];
   if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
     return "Wrong username or password";
   }

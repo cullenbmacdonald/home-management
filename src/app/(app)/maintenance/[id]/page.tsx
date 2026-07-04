@@ -19,14 +19,16 @@ export default async function MaintenanceEditPage({
 }) {
   const { id } = await params;
   const itemId = Number(id);
-  const item = db
-    .select()
-    .from(maintenanceItems)
-    .where(eq(maintenanceItems.id, itemId))
-    .get();
+  const item = (
+    await db
+      .select()
+      .from(maintenanceItems)
+      .where(eq(maintenanceItems.id, itemId))
+      .limit(1)
+  )[0];
   if (!item) notFound();
 
-  const roomList = db.select().from(rooms).orderBy(asc(rooms.sortOrder)).all();
+  const roomList = await db.select().from(rooms).orderBy(asc(rooms.sortOrder));
   const update = updateMaintenanceItem.bind(null, itemId);
   const deactivate = deactivateMaintenanceItem.bind(null, itemId);
 

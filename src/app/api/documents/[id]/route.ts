@@ -13,11 +13,13 @@ export async function GET(
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   const { id } = await params;
-  const doc = db
-    .select()
-    .from(documents)
-    .where(eq(documents.id, Number(id)))
-    .get();
+  const doc = (
+    await db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, Number(id)))
+      .limit(1)
+  )[0];
   if (!doc) return new Response("Not found", { status: 404 });
 
   const filePath = path.join(dataDir, "uploads", doc.filename);

@@ -7,8 +7,8 @@ import { MarkAllRead } from "@/components/mark-all-read";
 
 export const dynamic = "force-dynamic";
 
-export default function NotificationsPage() {
-  const notifs = listNotifications();
+export default async function NotificationsPage() {
+  const notifs = await listNotifications();
   const hasUnread = notifs.some((n) => !n.read);
   const now = new Date();
 

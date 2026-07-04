@@ -1,13 +1,8 @@
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { startMockHa } from "./mock-ha.mjs";
+import { get, run, close } from "./db.mjs";
 
 const base = "http://localhost:3777";
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const dbPath = path.join(process.env.DATA_DIR ?? path.join(repoRoot, "data"), "homebase.db");
-const db = new Database(dbPath, { readonly: false });
 
 const ok = (name, cond) => {
   console.log(cond ? `PASS ${name}` : `FAIL ${name}`);
@@ -16,8 +11,8 @@ const ok = (name, cond) => {
 
 const HA_PORT = 8123;
 const MOCK_BASE = `http://localhost:${HA_PORT}`;
-const getSetting = (key) =>
-  db.prepare("SELECT value FROM settings WHERE key=?").get(key)?.value;
+const getSetting = async (key) =>
+  (await get("SELECT value FROM settings WHERE key=$1", [key]))?.value;
 const getCalls = async () => (await fetch(`${MOCK_BASE}/calls`)).json();
 
 const { server } = await startMockHa(HA_PORT);
@@ -69,13 +64,13 @@ await page.fill(
 await page.getByRole("button", { name: /^Save/ }).click();
 await page.waitForTimeout(700);
 
-ok("H2 haBaseUrl saved", getSetting("haBaseUrl") === MOCK_BASE);
-ok("H2 haToken saved", getSetting("haToken") === "test-token");
+ok("H2 haBaseUrl saved", (await getSetting("haBaseUrl")) === MOCK_BASE);
+ok("H2 haToken saved", (await getSetting("haToken")) === "test-token");
 ok(
   "H2 haEntities saved as JSON array",
-  (() => {
+  await (async () => {
     try {
-      return JSON.parse(getSetting("haEntities")).length === 6;
+      return JSON.parse(await getSetting("haEntities")).length === 6;
     } catch {
       return false;
     }
@@ -170,9 +165,9 @@ ok(
 // ---------------------------------------------------------------------------
 // H6: HA unreachable -> error chip, page still renders, no crash
 // ---------------------------------------------------------------------------
-db.prepare("UPDATE settings SET value=? WHERE key='haBaseUrl'").run(
+await run("UPDATE settings SET value=$1 WHERE key='haBaseUrl'", [
   "http://localhost:59999",
-);
+]);
 await page.goto(base + "/home");
 ok("H6 /home renders unreachable chip", (await page.locator("[data-ha-error]").count()) > 0);
 ok(
@@ -180,7 +175,7 @@ ok(
   (await page.locator("main").count()) > 0,
 );
 // Restore config so nothing else is affected (not that later specs use HA).
-db.prepare("UPDATE settings SET value=? WHERE key='haBaseUrl'").run(MOCK_BASE);
+await run("UPDATE settings SET value=$1 WHERE key='haBaseUrl'", [MOCK_BASE]);
 
 // ---------------------------------------------------------------------------
 // H7: password change; old fails, new succeeds; then restored to 'changeme'
@@ -221,10 +216,10 @@ await page.waitForTimeout(700);
 ok("H7 password restored to changeme", (await page.getByText("Password updated").count()) > 0);
 
 // Leave the DB unconfigured so later specs see the setup-prompt state.
-db.prepare(
+await run(
   "DELETE FROM settings WHERE key IN ('haBaseUrl','haToken','haEntities')",
-).run();
+);
 
-db.close();
+await close();
 await browser.close();
 server.close();
