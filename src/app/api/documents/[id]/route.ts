@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import fs from "fs/promises";
 import path from "path";
 import { db, dataDir } from "@/db";
@@ -13,11 +13,18 @@ export async function GET(
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   const { id } = await params;
+  // Scope to the caller's household so document ids can't be enumerated across
+  // households.
   const doc = (
     await db
       .select()
       .from(documents)
-      .where(eq(documents.id, Number(id)))
+      .where(
+        and(
+          eq(documents.id, Number(id)),
+          eq(documents.householdId, user.householdId),
+        ),
+      )
       .limit(1)
   )[0];
   if (!doc) return new Response("Not found", { status: 404 });

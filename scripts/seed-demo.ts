@@ -2,8 +2,10 @@
 // data mirroring the design prototype, dated relative to the current week.
 // Idempotent per run — it clears and refills those four tables each time.
 // Usage: npm run seed:demo
+import { eq } from "drizzle-orm";
 import { db, pool } from "../src/db";
 import {
+  households,
   groceryItems,
   meals,
   mealIngredients,
@@ -110,37 +112,48 @@ const notifSeed: {
 ];
 
 async function main() {
-  const allUsers = await db.select().from(users);
+  // Demo data targets the first household (the one created by the first-run seed).
+  const [household] = await db.select().from(households).orderBy(households.id);
+  if (!household) {
+    throw new Error("No household found — run the app once to seed one first.");
+  }
+  const householdId = household.id;
+
+  const allUsers = await db
+    .select()
+    .from(users)
+    .where(eq(users.householdId, householdId));
   const idByName = (name: string) =>
     allUsers.find((u) => u.displayName === name)?.id ?? null;
 
-  // --- clear the four demo tables (children first) ---
-  await db.delete(mealIngredients);
-  await db.delete(meals);
-  await db.delete(groceryItems);
-  await db.delete(events);
-  await db.delete(notifications);
+  // --- clear this household's demo tables (children first) ---
+  await db.delete(mealIngredients).where(eq(mealIngredients.householdId, householdId));
+  await db.delete(meals).where(eq(meals.householdId, householdId));
+  await db.delete(groceryItems).where(eq(groceryItems.householdId, householdId));
+  await db.delete(events).where(eq(events.householdId, householdId));
+  await db.delete(notifications).where(eq(notifications.householdId, householdId));
 
   for (const [name, cat, qty, checked, isStaple] of grocery) {
     await db
       .insert(groceryItems)
-      .values({ name, category: CAT[cat], qty: qty || null, checked, isStaple });
+      .values({ householdId, name, category: CAT[cat], qty: qty || null, checked, isStaple });
   }
 
   for (const m of mealSeed) {
     const [meal] = await db
       .insert(meals)
-      .values({ date: weekDate(m.offset), title: m.title, cook: m.cook, out: m.out })
+      .values({ householdId, date: weekDate(m.offset), title: m.title, cook: m.cook, out: m.out })
       .returning({ id: meals.id });
     for (const [name, cat, qty] of m.ingredients) {
       await db
         .insert(mealIngredients)
-        .values({ mealId: meal.id, name, category: CAT[cat], qty: qty || null });
+        .values({ householdId, mealId: meal.id, name, category: CAT[cat], qty: qty || null });
     }
   }
 
   for (const e of eventSeed) {
     await db.insert(events).values({
+      householdId,
       date: weekDate(e.offset),
       time: e.time || null,
       title: e.title,
@@ -152,7 +165,7 @@ async function main() {
   for (const n of notifSeed) {
     await db
       .insert(notifications)
-      .values({ severity: n.severity, text: n.text, readAt: n.read ? new Date() : null });
+      .values({ householdId, severity: n.severity, text: n.text, readAt: n.read ? new Date() : null });
   }
 
   console.log("demo seed complete:", {

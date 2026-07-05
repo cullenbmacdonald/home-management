@@ -7,15 +7,55 @@ import {
   timestamp,
   doublePrecision,
   uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-export const users = pgTable("users", {
+export const households = pgTable("households", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  displayName: text("display_name").notNull(),
-  passwordHash: text("password_hash").notNull(),
-  accentColor: text("accent_color").notNull().default("#059669"),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+/** A household-scoped foreign key column, not-null, cascading on delete. */
+const householdId = () =>
+  integer("household_id")
+    .notNull()
+    .references(() => households.id, { onDelete: "cascade" });
+
+export const users = pgTable(
+  "users",
+  {
+    id: serial("id").primaryKey(),
+    householdId: householdId(),
+    username: text("username").notNull(),
+    displayName: text("display_name").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    accentColor: text("accent_color").notNull().default("#059669"),
+    role: text("role", { enum: ["owner", "member"] })
+      .notNull()
+      .default("member"),
+  },
+  (table) => [
+    // Usernames are unique within a household, not globally.
+    uniqueIndex("users_household_username_unique").on(
+      table.householdId,
+      sql`lower(${table.username})`,
+    ),
+  ],
+);
+
+/** Single-use invite links for adding residents to a household. */
+export const invites = pgTable("invites", {
+  id: serial("id").primaryKey(),
+  householdId: householdId(),
+  code: text("code").notNull().unique(),
+  createdById: integer("created_by_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  usedAt: timestamp("used_at", { mode: "date" }),
 });
 
 /** Grocery aisle categories, shared by staples/groceryItems/mealIngredients. */
@@ -39,12 +79,14 @@ export const sessions = pgTable("sessions", {
 
 export const rooms = pgTable("rooms", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   name: text("name").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   title: text("title").notNull(),
   notes: text("notes"),
   assigneeId: integer("assignee_id").references(() => users.id),
@@ -56,6 +98,7 @@ export const tasks = pgTable("tasks", {
 
 export const maintenanceItems = pgTable("maintenance_items", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   name: text("name").notNull(),
   notes: text("notes"),
   intervalDays: integer("interval_days").notNull(),
@@ -67,6 +110,7 @@ export const maintenanceItems = pgTable("maintenance_items", {
 
 export const maintenanceLogs = pgTable("maintenance_logs", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   itemId: integer("item_id")
     .notNull()
     .references(() => maintenanceItems.id, { onDelete: "cascade" }),
@@ -77,6 +121,7 @@ export const maintenanceLogs = pgTable("maintenance_logs", {
 
 export const wishlistItems = pgTable("wishlist_items", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   name: text("name").notNull(),
   roomId: integer("room_id").references(() => rooms.id),
   url: text("url"),
@@ -92,6 +137,7 @@ export const wishlistItems = pgTable("wishlist_items", {
 
 export const inventoryItems = pgTable("inventory_items", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   name: text("name").notNull(),
   roomId: integer("room_id").references(() => rooms.id),
   brand: text("brand"),
@@ -105,6 +151,7 @@ export const inventoryItems = pgTable("inventory_items", {
 
 export const vendors = pgTable("vendors", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   name: text("name").notNull(),
   specialty: text("specialty"), // e.g. plumber, HVAC, super
   phone: text("phone"),
@@ -114,6 +161,7 @@ export const vendors = pgTable("vendors", {
 
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   title: text("title").notNull(),
   filename: text("filename").notNull(), // stored filename on disk
   originalName: text("original_name").notNull(),
@@ -128,6 +176,7 @@ export const documents = pgTable("documents", {
 
 export const meals = pgTable("meals", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   date: text("date").notNull(), // YYYY-MM-DD
   title: text("title").notNull(),
   cook: boolean("cook").notNull().default(true),
@@ -139,6 +188,7 @@ export const meals = pgTable("meals", {
 
 export const mealIngredients = pgTable("meal_ingredients", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   mealId: integer("meal_id")
     .notNull()
     .references(() => meals.id, { onDelete: "cascade" }),
@@ -151,17 +201,22 @@ export const staples = pgTable(
   "staples",
   {
     id: serial("id").primaryKey(),
+    householdId: householdId(),
     name: text("name").notNull(),
     category: text("category", { enum: GROCERY_CATEGORIES }).notNull(),
   },
   (table) => [
-    // Case-insensitive uniqueness (replaces SQLite's COLLATE NOCASE unique).
-    uniqueIndex("staples_name_lower_unique").on(sql`lower(${table.name})`),
+    // Case-insensitive uniqueness, scoped per household.
+    uniqueIndex("staples_household_name_lower_unique").on(
+      table.householdId,
+      sql`lower(${table.name})`,
+    ),
   ],
 );
 
 export const groceryItems = pgTable("grocery_items", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   name: text("name").notNull(),
   category: text("category", { enum: GROCERY_CATEGORIES }).notNull(),
   qty: text("qty"),
@@ -175,6 +230,7 @@ export const groceryItems = pgTable("grocery_items", {
 
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   date: text("date").notNull(), // YYYY-MM-DD
   time: text("time"), // "19:30" (24h), nullable
   title: text("title").notNull(),
@@ -185,6 +241,7 @@ export const events = pgTable("events", {
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
+  householdId: householdId(),
   severity: text("severity", {
     enum: ["overdue", "due-soon", "info", "success"],
   }).notNull(),
@@ -193,7 +250,14 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 
-export const settings = pgTable("settings", {
-  key: text("key").primaryKey(),
-  value: text("value").notNull(),
-});
+export const settings = pgTable(
+  "settings",
+  {
+    householdId: householdId(),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.householdId, table.key] }),
+  ],
+);

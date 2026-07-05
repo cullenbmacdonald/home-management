@@ -1,42 +1,48 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { maintenanceItems, maintenanceLogs } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 
 export async function markDone(itemId: number, notes?: string) {
-  const user = await requireUser();
-  await db
-    .insert(maintenanceLogs)
-    .values({ itemId, completedById: user.id, notes: notes || null });
+  const { householdId, user } = await requireHousehold();
   const item = (
     await db
       .select({ name: maintenanceItems.name })
       .from(maintenanceItems)
-      .where(eq(maintenanceItems.id, itemId))
+      .where(
+        and(
+          eq(maintenanceItems.id, itemId),
+          eq(maintenanceItems.householdId, householdId),
+        ),
+      )
       .limit(1)
   )[0];
-  if (item) {
-    await createNotification(
-      "success",
-      `${user.displayName} completed “${item.name}”`,
-    );
-  }
+  if (!item) return;
+  await db
+    .insert(maintenanceLogs)
+    .values({ householdId, itemId, completedById: user.id, notes: notes || null });
+  await createNotification(
+    householdId,
+    "success",
+    `${user.displayName} completed “${item.name}”`,
+  );
   revalidatePath("/maintenance");
   revalidatePath("/");
 }
 
 export async function createMaintenanceItem(formData: FormData) {
-  await requireUser();
+  const { householdId } = await requireHousehold();
   const name = String(formData.get("name") ?? "").trim();
   const intervalDays = Number(formData.get("intervalDays"));
   if (!name || !Number.isFinite(intervalDays) || intervalDays < 1) return;
   const roomId = Number(formData.get("roomId"));
   await db.insert(maintenanceItems).values({
+    householdId,
     name,
     intervalDays: Math.round(intervalDays),
     roomId: Number.isFinite(roomId) && roomId > 0 ? roomId : null,
@@ -50,7 +56,7 @@ export async function createMaintenanceItem(formData: FormData) {
 }
 
 export async function updateMaintenanceItem(id: number, formData: FormData) {
-  await requireUser();
+  const { householdId } = await requireHousehold();
   const name = String(formData.get("name") ?? "").trim();
   const intervalDays = Number(formData.get("intervalDays"));
   if (!name || !Number.isFinite(intervalDays) || intervalDays < 1) return;
@@ -63,17 +69,27 @@ export async function updateMaintenanceItem(id: number, formData: FormData) {
       roomId: Number.isFinite(roomId) && roomId > 0 ? roomId : null,
       notes: String(formData.get("notes") ?? "").trim() || null,
     })
-    .where(eq(maintenanceItems.id, id));
+    .where(
+      and(
+        eq(maintenanceItems.id, id),
+        eq(maintenanceItems.householdId, householdId),
+      ),
+    );
   revalidatePath("/maintenance");
   redirect(`/maintenance/${id}`);
 }
 
 export async function deactivateMaintenanceItem(id: number) {
-  await requireUser();
+  const { householdId } = await requireHousehold();
   await db
     .update(maintenanceItems)
     .set({ active: false })
-    .where(eq(maintenanceItems.id, id));
+    .where(
+      and(
+        eq(maintenanceItems.id, id),
+        eq(maintenanceItems.householdId, householdId),
+      ),
+    );
   revalidatePath("/maintenance");
   redirect("/maintenance");
 }

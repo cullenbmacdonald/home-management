@@ -2,12 +2,18 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { inventoryItems, rooms } from "@/db/schema";
 import { createInventoryItem } from "./actions";
+import { requireHousehold } from "@/lib/auth";
 import { InventoryCard } from "@/components/inventory-card";
 
 export const dynamic = "force-dynamic";
 
 export default async function InventoryPage() {
-  const allRooms = await db.select().from(rooms).orderBy(asc(rooms.sortOrder));
+  const { householdId } = await requireHousehold();
+  const allRooms = await db
+    .select()
+    .from(rooms)
+    .where(eq(rooms.householdId, householdId))
+    .orderBy(asc(rooms.sortOrder));
   const items = await db
     .select({
       id: inventoryItems.id,
@@ -23,6 +29,7 @@ export default async function InventoryPage() {
     })
     .from(inventoryItems)
     .leftJoin(rooms, eq(inventoryItems.roomId, rooms.id))
+    .where(eq(inventoryItems.householdId, householdId))
     .orderBy(asc(inventoryItems.name));
 
   return (

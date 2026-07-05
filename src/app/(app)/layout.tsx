@@ -10,8 +10,8 @@ export default async function AppLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await requireUser();
   // First request of the day generates due-soon/overdue notifications.
-  await runDueSweepIfDue();
-  const unread = await unreadCount();
+  await runDueSweepIfDue(user.householdId);
+  const unread = await unreadCount(user.householdId);
   const chromeUser = {
     displayName: user.displayName,
     accentColor: user.accentColor,

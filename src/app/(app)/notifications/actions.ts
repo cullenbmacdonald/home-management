@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/auth";
 import { markAllRead } from "@/lib/notifications";
 
 export async function markAllNotificationsRead() {
-  await requireUser();
-  await markAllRead();
+  const { householdId } = await requireHousehold();
+  await markAllRead(householdId);
   revalidatePath("/notifications");
   revalidatePath("/more");
   revalidatePath("/", "layout");

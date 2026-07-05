@@ -1,10 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { wishlistItems } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 
 const STATUSES = ["considering", "decided", "ordered", "delivered"] as const;
@@ -18,11 +18,12 @@ const STAGE_LABELS: Record<Status, string> = {
 };
 
 export async function createWishlistItem(formData: FormData) {
-  await requireUser();
+  const { householdId } = await requireHousehold();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
   const price = Number(formData.get("price"));
   await db.insert(wishlistItems).values({
+    householdId,
     name,
     roomId: Number(formData.get("roomId")) || null,
     url: String(formData.get("url") ?? "").trim() || null,
@@ -33,9 +34,15 @@ export async function createWishlistItem(formData: FormData) {
 }
 
 export async function advanceWishlistItem(id: number) {
-  const user = await requireUser();
+  const { householdId, user } = await requireHousehold();
   const item = (
-    await db.select().from(wishlistItems).where(eq(wishlistItems.id, id)).limit(1)
+    await db
+      .select()
+      .from(wishlistItems)
+      .where(
+        and(eq(wishlistItems.id, id), eq(wishlistItems.householdId, householdId)),
+      )
+      .limit(1)
   )[0];
   if (!item) return;
   const i = STATUSES.indexOf(item.status as Status);
@@ -44,8 +51,11 @@ export async function advanceWishlistItem(id: number) {
   await db
     .update(wishlistItems)
     .set({ status: next })
-    .where(eq(wishlistItems.id, id));
+    .where(
+      and(eq(wishlistItems.id, id), eq(wishlistItems.householdId, householdId)),
+    );
   await createNotification(
+    householdId,
     "success",
     `${user.displayName} moved “${item.name}” to ${STAGE_LABELS[next]}`,
   );
@@ -53,7 +63,11 @@ export async function advanceWishlistItem(id: number) {
 }
 
 export async function deleteWishlistItem(id: number) {
-  await requireUser();
-  await db.delete(wishlistItems).where(eq(wishlistItems.id, id));
+  const { householdId } = await requireHousehold();
+  await db
+    .delete(wishlistItems)
+    .where(
+      and(eq(wishlistItems.id, id), eq(wishlistItems.householdId, householdId)),
+    );
   revalidatePath("/wishlist");
 }

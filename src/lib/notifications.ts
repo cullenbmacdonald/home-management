@@ -5,9 +5,13 @@ import { listMaintenanceWithDue } from "@/lib/maintenance";
 
 export type Severity = "overdue" | "due-soon" | "info" | "success";
 
-/** Insert a notification. Returns nothing; callers revalidate as needed. */
-export async function createNotification(severity: Severity, text: string) {
-  await db.insert(notifications).values({ severity, text });
+/** Insert a notification for a household. Callers revalidate as needed. */
+export async function createNotification(
+  householdId: number,
+  severity: Severity,
+  text: string,
+) {
+  await db.insert(notifications).values({ householdId, severity, text });
 }
 
 /** YYYY-MM-DD for the local day. */
@@ -15,22 +19,25 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function getSetting(key: string): Promise<string | null> {
+async function getSetting(householdId: number, key: string): Promise<string | null> {
   const row = (
     await db
       .select({ value: settings.value })
       .from(settings)
-      .where(eq(settings.key, key))
+      .where(and(eq(settings.householdId, householdId), eq(settings.key, key)))
       .limit(1)
   )[0];
   return row?.value ?? null;
 }
 
-async function setSetting(key: string, value: string) {
+async function setSetting(householdId: number, key: string, value: string) {
   await db
     .insert(settings)
-    .values({ key, value })
-    .onConflictDoUpdate({ target: settings.key, set: { value } });
+    .values({ householdId, key, value })
+    .onConflictDoUpdate({
+      target: [settings.householdId, settings.key],
+      set: { value },
+    });
 }
 
 /** Start of the local day, as a Date (for "created today" dedupe). */
@@ -46,8 +53,8 @@ function startOfToday(): Date {
  * was already created today, it is skipped, so a same-day double-run never
  * duplicates. Records the sweep date in settings ('lastDueSweep').
  */
-export async function runDueSweep() {
-  const items = await listMaintenanceWithDue();
+export async function runDueSweep(householdId: number) {
+  const items = await listMaintenanceWithDue(householdId);
   const dayStart = startOfToday();
 
   for (const item of items) {
@@ -75,6 +82,7 @@ export async function runDueSweep() {
         .from(notifications)
         .where(
           and(
+            eq(notifications.householdId, householdId),
             eq(notifications.text, text),
             gte(notifications.createdAt, dayStart),
           ),
@@ -83,16 +91,16 @@ export async function runDueSweep() {
     )[0];
     if (existing) continue;
 
-    await createNotification(severity, text);
+    await createNotification(householdId, severity, text);
   }
 
-  await setSetting("lastDueSweep", today());
+  await setSetting(householdId, "lastDueSweep", today());
 }
 
 /** Run the sweep at most once per local day (cheap guard for the layout). */
-export async function runDueSweepIfDue() {
-  if ((await getSetting("lastDueSweep")) === today()) return;
-  await runDueSweep();
+export async function runDueSweepIfDue(householdId: number) {
+  if ((await getSetting(householdId, "lastDueSweep")) === today()) return;
+  await runDueSweep(householdId);
 }
 
 export interface NotificationRow {
@@ -104,7 +112,9 @@ export interface NotificationRow {
 }
 
 /** Feed, newest first. */
-export async function listNotifications(): Promise<NotificationRow[]> {
+export async function listNotifications(
+  householdId: number,
+): Promise<NotificationRow[]> {
   const rows = await db
     .select({
       id: notifications.id,
@@ -114,6 +124,7 @@ export async function listNotifications(): Promise<NotificationRow[]> {
       createdAt: notifications.createdAt,
     })
     .from(notifications)
+    .where(eq(notifications.householdId, householdId))
     .orderBy(desc(notifications.createdAt), desc(notifications.id));
   return rows.map((r) => ({
     id: r.id,
@@ -124,19 +135,29 @@ export async function listNotifications(): Promise<NotificationRow[]> {
   }));
 }
 
-export async function unreadCount(): Promise<number> {
+export async function unreadCount(householdId: number): Promise<number> {
   const rows = await db
     .select({ id: notifications.id })
     .from(notifications)
-    .where(isNull(notifications.readAt));
+    .where(
+      and(
+        eq(notifications.householdId, householdId),
+        isNull(notifications.readAt),
+      ),
+    );
   return rows.length;
 }
 
-export async function markAllRead() {
+export async function markAllRead(householdId: number) {
   await db
     .update(notifications)
     .set({ readAt: new Date() })
-    .where(isNull(notifications.readAt));
+    .where(
+      and(
+        eq(notifications.householdId, householdId),
+        isNull(notifications.readAt),
+      ),
+    );
 }
 
 // severity → dot color, per design handoff

@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { settings } from "@/db/schema";
 
@@ -22,11 +22,16 @@ export interface HaConfig {
 }
 
 /** Reads config from settings; null unless both base URL and token are set. */
-export async function getHaConfig(): Promise<HaConfig | null> {
+export async function getHaConfig(householdId: number): Promise<HaConfig | null> {
   const rows = await db
     .select()
     .from(settings)
-    .where(inArray(settings.key, ["haBaseUrl", "haToken", "haEntities"]));
+    .where(
+      and(
+        eq(settings.householdId, householdId),
+        inArray(settings.key, ["haBaseUrl", "haToken", "haEntities"]),
+      ),
+    );
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Record<
     string,
     string | undefined
@@ -44,15 +49,15 @@ export async function getHaConfig(): Promise<HaConfig | null> {
   return { baseUrl, token, entities };
 }
 
-export async function isHaConfigured(): Promise<boolean> {
-  return (await getHaConfig()) !== null;
+export async function isHaConfigured(householdId: number): Promise<boolean> {
+  return (await getHaConfig(householdId)) !== null;
 }
 
 type StatesResult = { ok: true; states: HaState[] } | { ok: false };
 
 /** GET /api/states, filtered to configured entity ids. 5s timeout. */
-export async function getStates(): Promise<StatesResult> {
-  const cfg = await getHaConfig();
+export async function getStates(householdId: number): Promise<StatesResult> {
+  const cfg = await getHaConfig(householdId);
   if (!cfg) return { ok: false };
   try {
     const controller = new AbortController();
@@ -77,11 +82,12 @@ export async function getStates(): Promise<StatesResult> {
 
 /** POST /api/services/{domain}/{service}. Returns whether the call succeeded. */
 export async function callService(
+  householdId: number,
   domain: string,
   service: string,
   data: Record<string, unknown>,
 ): Promise<boolean> {
-  const cfg = await getHaConfig();
+  const cfg = await getHaConfig(householdId);
   if (!cfg) return false;
   try {
     const controller = new AbortController();

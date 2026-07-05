@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
-import { inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { settings } from "@/db/schema";
-import { getCurrentUser, destroySession } from "@/lib/auth";
+import { households, settings, users } from "@/db/schema";
+import { requireHousehold, destroySession } from "@/lib/auth";
 import { getStates, isHaConfigured } from "@/lib/ha";
 import { HaConfigForm, PasswordForm } from "@/components/settings-forms";
+import { HouseholdSettings } from "@/components/household-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ const HEADING =
   "text-[11px] font-bold uppercase tracking-[0.06em] text-[#a8a29e]";
 
 export default async function SettingsPage() {
-  const user = await getCurrentUser();
+  const { householdId, userId, role, user } = await requireHousehold();
 
   async function logout() {
     "use server";
@@ -21,10 +22,34 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
+  const household = (
+    await db
+      .select({ name: households.name })
+      .from(households)
+      .where(eq(households.id, householdId))
+      .limit(1)
+  )[0];
+  const residents = await db
+    .select({
+      id: users.id,
+      displayName: users.displayName,
+      username: users.username,
+      accentColor: users.accentColor,
+      role: users.role,
+    })
+    .from(users)
+    .where(eq(users.householdId, householdId))
+    .orderBy(asc(users.id));
+
   const rows = await db
     .select()
     .from(settings)
-    .where(inArray(settings.key, ["haBaseUrl", "haToken", "haEntities"]));
+    .where(
+      and(
+        eq(settings.householdId, householdId),
+        inArray(settings.key, ["haBaseUrl", "haToken", "haEntities"]),
+      ),
+    );
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Record<
     string,
     string | undefined
@@ -39,8 +64,8 @@ export default async function SettingsPage() {
     entities = "";
   }
 
-  const configured = await isHaConfigured();
-  const connection = configured ? await getStates() : null;
+  const configured = await isHaConfigured(householdId);
+  const connection = configured ? await getStates(householdId) : null;
   const connectionOk = connection?.ok ?? false;
 
   const initial = (user?.displayName ?? "?").charAt(0).toUpperCase();
@@ -75,6 +100,19 @@ export default async function SettingsPage() {
               Sign out{user ? ` (${user.displayName})` : ""}
             </button>
           </form>
+        </div>
+      </section>
+
+      {/* Household */}
+      <section className="space-y-2">
+        <h2 className={`${HEADING} mx-1`}>Household</h2>
+        <div className={CARD}>
+          <HouseholdSettings
+            householdName={household?.name ?? "Our Home"}
+            residents={residents}
+            currentUserId={userId}
+            isOwner={role === "owner"}
+          />
         </div>
       </section>
 

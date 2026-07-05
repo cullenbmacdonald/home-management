@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { maintenanceItems, maintenanceLogs, rooms, users } from "@/db/schema";
 
@@ -29,6 +29,7 @@ export interface MaintenanceLogEntry {
 /** Full completion history for one item, newest first. */
 export async function getMaintenanceHistory(
   itemId: number,
+  householdId: number,
 ): Promise<MaintenanceLogEntry[]> {
   return db
     .select({
@@ -40,7 +41,12 @@ export async function getMaintenanceHistory(
     })
     .from(maintenanceLogs)
     .leftJoin(users, eq(maintenanceLogs.completedById, users.id))
-    .where(eq(maintenanceLogs.itemId, itemId))
+    .where(
+      and(
+        eq(maintenanceLogs.itemId, itemId),
+        eq(maintenanceLogs.householdId, householdId),
+      ),
+    )
     .orderBy(desc(maintenanceLogs.completedAt));
 }
 
@@ -55,7 +61,9 @@ export function dueSoonWindowDays(intervalDays: number): number {
   return Math.min(7, intervalDays - 1);
 }
 
-export async function listMaintenanceWithDue(): Promise<MaintenanceWithDue[]> {
+export async function listMaintenanceWithDue(
+  householdId: number,
+): Promise<MaintenanceWithDue[]> {
   const items = await db
     .select({
       id: maintenanceItems.id,
@@ -68,7 +76,12 @@ export async function listMaintenanceWithDue(): Promise<MaintenanceWithDue[]> {
     })
     .from(maintenanceItems)
     .leftJoin(rooms, eq(maintenanceItems.roomId, rooms.id))
-    .where(eq(maintenanceItems.active, true));
+    .where(
+      and(
+        eq(maintenanceItems.active, true),
+        eq(maintenanceItems.householdId, householdId),
+      ),
+    );
 
   const now = new Date();
   const result = await Promise.all(items.map(async (item) => {

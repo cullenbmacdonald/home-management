@@ -2,13 +2,19 @@ import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { rooms, wishlistItems } from "@/db/schema";
 import { createWishlistItem } from "./actions";
+import { requireHousehold } from "@/lib/auth";
 import { WishlistCard } from "@/components/wishlist-card";
 import { formatMoney } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function WishlistPage() {
-  const allRooms = await db.select().from(rooms).orderBy(asc(rooms.sortOrder));
+  const { householdId } = await requireHousehold();
+  const allRooms = await db
+    .select()
+    .from(rooms)
+    .where(eq(rooms.householdId, householdId))
+    .orderBy(asc(rooms.sortOrder));
   const items = await db
     .select({
       id: wishlistItems.id,
@@ -21,6 +27,7 @@ export default async function WishlistPage() {
     })
     .from(wishlistItems)
     .leftJoin(rooms, eq(wishlistItems.roomId, rooms.id))
+    .where(eq(wishlistItems.householdId, householdId))
     .orderBy(desc(wishlistItems.createdAt));
 
   const committed = items

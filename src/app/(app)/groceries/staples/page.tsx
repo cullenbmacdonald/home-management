@@ -1,13 +1,19 @@
 import Link from "next/link";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { staples } from "@/db/schema";
+import { requireHousehold } from "@/lib/auth";
 import { StaplesManager, type StapleRow } from "@/components/staples-manager";
 
 export const dynamic = "force-dynamic";
 
 export default async function StaplesPage() {
-  const rows = await db.select().from(staples).orderBy(asc(staples.name));
+  const { householdId } = await requireHousehold();
+  const rows = await db
+    .select()
+    .from(staples)
+    .where(eq(staples.householdId, householdId))
+    .orderBy(asc(staples.name));
   const items: StapleRow[] = rows.map((r) => ({
     id: r.id,
     name: r.name,

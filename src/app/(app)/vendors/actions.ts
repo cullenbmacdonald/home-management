@@ -1,17 +1,18 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { vendors } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/auth";
 
 export async function createVendor(formData: FormData) {
-  await requireUser();
+  const { householdId } = await requireHousehold();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
   const s = (k: string) => String(formData.get(k) ?? "").trim() || null;
   await db.insert(vendors).values({
+    householdId,
     name,
     specialty: s("specialty"),
     phone: s("phone"),
@@ -22,7 +23,9 @@ export async function createVendor(formData: FormData) {
 }
 
 export async function deleteVendor(id: number) {
-  await requireUser();
-  await db.delete(vendors).where(eq(vendors.id, id));
+  const { householdId } = await requireHousehold();
+  await db
+    .delete(vendors)
+    .where(and(eq(vendors.id, id), eq(vendors.householdId, householdId)));
   revalidatePath("/vendors");
 }

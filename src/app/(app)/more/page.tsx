@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { isNull, ne, inArray } from "drizzle-orm";
+import { and, eq, isNull, ne, inArray } from "drizzle-orm";
 import type { ReactNode } from "react";
 import { db } from "@/db";
 import {
@@ -11,6 +11,7 @@ import {
   vendors,
   settings,
 } from "@/db/schema";
+import { requireHousehold } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -78,38 +79,64 @@ const icons: Record<string, ReactNode> = {
 };
 
 export default async function MorePage() {
+  const { householdId } = await requireHousehold();
   const openTasks = (
     await db
       .select({ id: tasks.id })
       .from(tasks)
-      .where(isNull(tasks.completedAt))
+      .where(and(eq(tasks.householdId, householdId), isNull(tasks.completedAt)))
   ).length;
   const activeWishlist = (
     await db
       .select({ id: wishlistItems.id })
       .from(wishlistItems)
-      .where(ne(wishlistItems.status, "delivered"))
+      .where(
+        and(
+          eq(wishlistItems.householdId, householdId),
+          ne(wishlistItems.status, "delivered"),
+        ),
+      )
   ).length;
   const unread = (
     await db
       .select({ id: notifications.id })
       .from(notifications)
-      .where(isNull(notifications.readAt))
+      .where(
+        and(
+          eq(notifications.householdId, householdId),
+          isNull(notifications.readAt),
+        ),
+      )
   ).length;
   const inventoryCount = (
-    await db.select({ id: inventoryItems.id }).from(inventoryItems)
+    await db
+      .select({ id: inventoryItems.id })
+      .from(inventoryItems)
+      .where(eq(inventoryItems.householdId, householdId))
   ).length;
   const documentCount = (
-    await db.select({ id: documents.id }).from(documents)
+    await db
+      .select({ id: documents.id })
+      .from(documents)
+      .where(eq(documents.householdId, householdId))
   ).length;
-  const contactCount = (await db.select({ id: vendors.id }).from(vendors))
-    .length;
+  const contactCount = (
+    await db
+      .select({ id: vendors.id })
+      .from(vendors)
+      .where(eq(vendors.householdId, householdId))
+  ).length;
   const haConfigured =
     (
       await db
         .select({ key: settings.key })
         .from(settings)
-        .where(inArray(settings.key, ["haBaseUrl", "haToken"]))
+        .where(
+          and(
+            eq(settings.householdId, householdId),
+            inArray(settings.key, ["haBaseUrl", "haToken"]),
+          ),
+        )
     ).length >= 2;
 
   const tiles = [

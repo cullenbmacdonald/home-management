@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { listMaintenanceWithDue, getMaintenanceHistory } from "@/lib/maintenance";
-import { getCurrentUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/auth";
 import { UpkeepList } from "@/components/upkeep-list";
 import type { UpkeepRow, HistoryEntry } from "@/components/upkeep-list";
 
 export const dynamic = "force-dynamic";
 
 export default async function MaintenancePage() {
-  const items = await listMaintenanceWithDue();
-  const user = await getCurrentUser();
+  const { householdId, user } = await requireHousehold();
+  const items = await listMaintenanceWithDue(householdId);
 
   const rows: UpkeepRow[] = items.map((item) => ({
     id: item.id,
@@ -22,7 +22,9 @@ export default async function MaintenancePage() {
 
   const histories: Record<number, HistoryEntry[]> = {};
   for (const item of items) {
-    histories[item.id] = (await getMaintenanceHistory(item.id)).map((h) => ({
+    histories[item.id] = (
+      await getMaintenanceHistory(item.id, householdId)
+    ).map((h) => ({
       id: h.id,
       at: h.completedAt.toISOString(),
       by: h.by,
