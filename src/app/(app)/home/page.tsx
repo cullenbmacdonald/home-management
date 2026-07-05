@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { getStates, isHaConfigured, toView } from "@/lib/ha";
+import { requireHousehold } from "@/lib/auth";
 import { HaHome } from "@/components/ha-home";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  if (!(await isHaConfigured())) {
+  const { householdId } = await requireHousehold();
+  if (!(await isHaConfigured(householdId))) {
     return (
       <Link
         href="/settings"
@@ -22,7 +24,7 @@ export default async function HomePage() {
     );
   }
 
-  const result = await getStates();
+  const result = await getStates(householdId);
   const view = result.ok
     ? toView(result.states)
     : { temps: [], climates: [], locks: [], switches: [] };

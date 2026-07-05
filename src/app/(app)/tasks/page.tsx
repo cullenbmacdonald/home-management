@@ -1,7 +1,8 @@
-import { asc, desc, isNull, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { tasks, users } from "@/db/schema";
 import { createTask } from "./actions";
+import { requireHousehold } from "@/lib/auth";
 import { TaskRow } from "@/components/task-row";
 
 export const dynamic = "force-dynamic";
@@ -10,18 +11,22 @@ const inputCls =
   "w-full rounded-[10px] border border-[#e7e5e4] bg-white px-3 py-2.5 text-[14px] text-[#1c1917] placeholder:text-[#a8a29e] focus:border-[#059669] focus:outline-none";
 
 export default async function TasksPage() {
-  const allUsers = await db.select().from(users);
+  const { householdId } = await requireHousehold();
+  const allUsers = await db
+    .select()
+    .from(users)
+    .where(eq(users.householdId, householdId));
   const userMap = new Map(allUsers.map((u) => [u.id, u.displayName]));
 
   const open = await db
     .select()
     .from(tasks)
-    .where(isNull(tasks.completedAt))
+    .where(and(eq(tasks.householdId, householdId), isNull(tasks.completedAt)))
     .orderBy(asc(tasks.dueDate), desc(tasks.createdAt));
   const done = await db
     .select()
     .from(tasks)
-    .where(isNotNull(tasks.completedAt))
+    .where(and(eq(tasks.householdId, householdId), isNotNull(tasks.completedAt)))
     .orderBy(desc(tasks.completedAt))
     .limit(20);
 

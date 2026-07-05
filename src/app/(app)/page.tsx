@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { groceryItems } from "@/db/schema";
 import { listMaintenanceWithDue } from "@/lib/maintenance";
 import { buildEventsByDate, type EventType } from "@/lib/plan-data";
 import { intervalLabel } from "@/lib/format";
 import { toYMD } from "@/lib/week";
-import { getCurrentUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/auth";
 import { DueBadge } from "@/components/status-badge";
 import { MarkDoneButton } from "@/components/mark-done-button";
 import { HomeTiles } from "@/components/home-tiles";
@@ -23,15 +24,20 @@ const labelCls =
   "text-[12px] font-bold uppercase tracking-[0.06em] text-[#a8a29e]";
 
 export default async function DashboardPage() {
-  const user = await getCurrentUser();
+  const { householdId, user } = await requireHousehold();
 
-  const maintenance = await listMaintenanceWithDue();
+  const maintenance = await listMaintenanceWithDue(householdId);
   const needsAttention = maintenance.filter((m) => m.status !== "ok");
 
   const todayKey = toYMD(new Date());
-  const todayEvents = (await buildEventsByDate([todayKey], todayKey))[todayKey];
+  const todayEvents = (
+    await buildEventsByDate(householdId, [todayKey], todayKey)
+  )[todayKey];
 
-  const groceries = await db.select().from(groceryItems);
+  const groceries = await db
+    .select()
+    .from(groceryItems)
+    .where(eq(groceryItems.householdId, householdId));
   const groceryTotal = groceries.length;
   const groceryChecked = groceries.filter((g) => g.checked).length;
   const groceryPct = groceryTotal ? (groceryChecked / groceryTotal) * 100 : 0;
@@ -171,7 +177,7 @@ export default async function DashboardPage() {
         </Link>
       </section>
 
-      <HomeTiles />
+      <HomeTiles householdId={householdId} />
       </div>
     </div>
   );

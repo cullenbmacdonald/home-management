@@ -7,8 +7,8 @@ import { HaDashboardTiles } from "@/components/ha-dashboard-tiles";
  * configured -> compact live tiles (temps + lock + climate summary), degrading
  * to a small error chip when HA is unreachable.
  */
-export async function HomeTiles() {
-  const configured = await isHaConfigured();
+export async function HomeTiles({ householdId }: { householdId: number }) {
+  const configured = await isHaConfigured(householdId);
 
   return (
     <section>
@@ -16,7 +16,7 @@ export async function HomeTiles() {
         Home
       </h2>
       {configured ? (
-        await LiveTiles()
+        await LiveTiles(householdId)
       ) : (
         <Link
           href="/settings"
@@ -35,8 +35,8 @@ export async function HomeTiles() {
   );
 }
 
-async function LiveTiles() {
-  const result = await getStates();
+async function LiveTiles(householdId: number) {
+  const result = await getStates(householdId);
   const view = result.ok
     ? toView(result.states)
     : { temps: [], climates: [], locks: [], switches: [] };

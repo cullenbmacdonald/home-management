@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/auth";
 import { callService } from "@/lib/ha";
 
 function refresh() {
@@ -15,9 +15,9 @@ export async function adjustSetpoint(
   current: number,
   delta: number,
 ) {
-  await requireUser();
+  const { householdId } = await requireHousehold();
   const temperature = current + delta;
-  await callService("climate", "set_temperature", {
+  await callService(householdId, "climate", "set_temperature", {
     entity_id: entityId,
     temperature,
   });
@@ -25,16 +25,16 @@ export async function adjustSetpoint(
 }
 
 export async function toggleLock(entityId: string, locked: boolean) {
-  await requireUser();
-  await callService("lock", locked ? "unlock" : "lock", {
+  const { householdId } = await requireHousehold();
+  await callService(householdId, "lock", locked ? "unlock" : "lock", {
     entity_id: entityId,
   });
   refresh();
 }
 
 export async function toggleSwitch(entityId: string, on: boolean) {
-  await requireUser();
-  await callService("switch", on ? "turn_off" : "turn_on", {
+  const { householdId } = await requireHousehold();
+  await callService(householdId, "switch", on ? "turn_off" : "turn_on", {
     entity_id: entityId,
   });
   refresh();

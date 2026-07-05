@@ -1,7 +1,8 @@
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { rooms } from "@/db/schema";
 import { createMaintenanceItem } from "../actions";
+import { requireHousehold } from "@/lib/auth";
 import { IntervalField } from "@/components/interval-field";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,12 @@ const inputCls =
   "mt-1.5 w-full rounded-xl border border-[#e7e5e4] bg-white px-3 py-2.5 text-[15px] text-[#1c1917] focus:border-[#059669] focus:outline-none";
 
 export default async function NewMaintenancePage() {
-  const roomList = await db.select().from(rooms).orderBy(asc(rooms.sortOrder));
+  const { householdId } = await requireHousehold();
+  const roomList = await db
+    .select()
+    .from(rooms)
+    .where(eq(rooms.householdId, householdId))
+    .orderBy(asc(rooms.sortOrder));
 
   return (
     <form

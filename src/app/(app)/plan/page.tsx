@@ -1,6 +1,7 @@
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { meals, mealIngredients, users } from "@/db/schema";
+import { requireHousehold } from "@/lib/auth";
 import {
   getWeekDays,
   getMonthGrid,
@@ -21,6 +22,7 @@ export default async function PlanPage({
 }: {
   searchParams: Promise<{ tab?: string; month?: string; day?: string }>;
 }) {
+  const { householdId } = await requireHousehold();
   const sp = await searchParams;
   const tab = sp.tab === "meals" ? "meals" : "calendar";
 
@@ -46,20 +48,26 @@ export default async function PlanPage({
 
   // Overdue upkeep lands on today only when today is on screen.
   const overdueKey = monthKeys.includes(todayKey) ? todayKey : firstInMonth;
-  const eventsByDate = await buildEventsByDate(monthKeys, overdueKey);
+  const eventsByDate = await buildEventsByDate(householdId, monthKeys, overdueKey);
 
   // Meals tab stays on the current week.
   const week = getWeekDays(today);
   const keys = week.map((d) => d.date);
-  const mealRows = await db.select().from(meals).where(inArray(meals.date, keys));
+  const mealRows = await db
+    .select()
+    .from(meals)
+    .where(and(eq(meals.householdId, householdId), inArray(meals.date, keys)));
   const ingRows = mealRows.length
     ? await db
         .select()
         .from(mealIngredients)
         .where(
-          inArray(
-            mealIngredients.mealId,
-            mealRows.map((m) => m.id),
+          and(
+            eq(mealIngredients.householdId, householdId),
+            inArray(
+              mealIngredients.mealId,
+              mealRows.map((m) => m.id),
+            ),
           ),
         )
     : [];
@@ -80,7 +88,8 @@ export default async function PlanPage({
 
   const userOptions: UserOption[] = await db
     .select({ id: users.id, displayName: users.displayName })
-    .from(users);
+    .from(users)
+    .where(eq(users.householdId, householdId));
 
   return (
     <PlanView

@@ -1,10 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { inventoryItems } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/auth";
 
 function fields(formData: FormData) {
   const s = (k: string) => String(formData.get(k) ?? "").trim() || null;
@@ -21,26 +21,32 @@ function fields(formData: FormData) {
 }
 
 export async function createInventoryItem(formData: FormData) {
-  await requireUser();
+  const { householdId } = await requireHousehold();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
-  await db.insert(inventoryItems).values({ name, ...fields(formData) });
+  await db.insert(inventoryItems).values({ householdId, name, ...fields(formData) });
   revalidatePath("/inventory");
 }
 
 export async function updateInventoryItem(id: number, formData: FormData) {
-  await requireUser();
+  const { householdId } = await requireHousehold();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
   await db
     .update(inventoryItems)
     .set({ name, ...fields(formData) })
-    .where(eq(inventoryItems.id, id));
+    .where(
+      and(eq(inventoryItems.id, id), eq(inventoryItems.householdId, householdId)),
+    );
   revalidatePath("/inventory");
 }
 
 export async function deleteInventoryItem(id: number) {
-  await requireUser();
-  await db.delete(inventoryItems).where(eq(inventoryItems.id, id));
+  const { householdId } = await requireHousehold();
+  await db
+    .delete(inventoryItems)
+    .where(
+      and(eq(inventoryItems.id, id), eq(inventoryItems.householdId, householdId)),
+    );
   revalidatePath("/inventory");
 }

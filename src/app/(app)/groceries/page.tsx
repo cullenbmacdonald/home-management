@@ -1,12 +1,18 @@
 import Link from "next/link";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { groceryItems } from "@/db/schema";
+import { requireHousehold } from "@/lib/auth";
 import { ShopList, type ShopRow } from "@/components/shop-list";
 
 export const dynamic = "force-dynamic";
 
 export default async function GroceriesPage() {
-  const rows = await db.select().from(groceryItems);
+  const { householdId } = await requireHousehold();
+  const rows = await db
+    .select()
+    .from(groceryItems)
+    .where(eq(groceryItems.householdId, householdId));
   const items: ShopRow[] = rows.map((r) => ({
     id: r.id,
     name: r.name,

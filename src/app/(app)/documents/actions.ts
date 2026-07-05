@@ -1,18 +1,18 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import { db, dataDir } from "@/db";
 import { documents } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireHousehold } from "@/lib/auth";
 
 const uploadsDir = path.join(dataDir, "uploads");
 
 export async function uploadDocument(formData: FormData) {
-  await requireUser();
+  const { householdId } = await requireHousehold();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return;
   const title =
@@ -28,6 +28,7 @@ export async function uploadDocument(formData: FormData) {
   );
 
   await db.insert(documents).values({
+    householdId,
     title,
     filename,
     originalName: file.name,
@@ -38,12 +39,18 @@ export async function uploadDocument(formData: FormData) {
 }
 
 export async function deleteDocument(id: number) {
-  await requireUser();
+  const { householdId } = await requireHousehold();
   const doc = (
-    await db.select().from(documents).where(eq(documents.id, id)).limit(1)
+    await db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, id), eq(documents.householdId, householdId)))
+      .limit(1)
   )[0];
   if (!doc) return;
-  await db.delete(documents).where(eq(documents.id, id));
+  await db
+    .delete(documents)
+    .where(and(eq(documents.id, id), eq(documents.householdId, householdId)));
   await fs.unlink(path.join(uploadsDir, doc.filename)).catch(() => {});
   revalidatePath("/documents");
 }

@@ -1,15 +1,18 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { documents } from "@/db/schema";
 import { uploadDocument } from "./actions";
+import { requireHousehold } from "@/lib/auth";
 import { DocumentRow } from "@/components/document-row";
 
 export const dynamic = "force-dynamic";
 
 export default async function DocumentsPage() {
+  const { householdId } = await requireHousehold();
   const docs = await db
     .select()
     .from(documents)
+    .where(eq(documents.householdId, householdId))
     .orderBy(desc(documents.uploadedAt));
 
   return (

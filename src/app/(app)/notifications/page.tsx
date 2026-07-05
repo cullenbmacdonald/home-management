@@ -3,12 +3,14 @@ import {
   relativeTime,
   SEVERITY_COLOR,
 } from "@/lib/notifications";
+import { requireHousehold } from "@/lib/auth";
 import { MarkAllRead } from "@/components/mark-all-read";
 
 export const dynamic = "force-dynamic";
 
 export default async function NotificationsPage() {
-  const notifs = await listNotifications();
+  const { householdId } = await requireHousehold();
+  const notifs = await listNotifications(householdId);
   const hasUnread = notifs.some((n) => !n.read);
   const now = new Date();
 

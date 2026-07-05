@@ -1,8 +1,9 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { maintenanceItems, rooms } from "@/db/schema";
 import { updateMaintenanceItem, deactivateMaintenanceItem } from "../actions";
+import { requireHousehold } from "@/lib/auth";
 import { IntervalField } from "@/components/interval-field";
 
 export const dynamic = "force-dynamic";
@@ -17,18 +18,28 @@ export default async function MaintenanceEditPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { householdId } = await requireHousehold();
   const { id } = await params;
   const itemId = Number(id);
   const item = (
     await db
       .select()
       .from(maintenanceItems)
-      .where(eq(maintenanceItems.id, itemId))
+      .where(
+        and(
+          eq(maintenanceItems.id, itemId),
+          eq(maintenanceItems.householdId, householdId),
+        ),
+      )
       .limit(1)
   )[0];
   if (!item) notFound();
 
-  const roomList = await db.select().from(rooms).orderBy(asc(rooms.sortOrder));
+  const roomList = await db
+    .select()
+    .from(rooms)
+    .where(eq(rooms.householdId, householdId))
+    .orderBy(asc(rooms.sortOrder));
   const update = updateMaintenanceItem.bind(null, itemId);
   const deactivate = deactivateMaintenanceItem.bind(null, itemId);
 

@@ -1,4 +1,4 @@
-import { inArray, eq } from "drizzle-orm";
+import { and, inArray, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { events, users } from "@/db/schema";
 import { listMaintenanceWithDue } from "@/lib/maintenance";
@@ -23,6 +23,7 @@ export interface DerivedEvent {
  * Each day is sorted timed-first (ascending), untimed (incl. upkeep) last.
  */
 export async function buildEventsByDate(
+  householdId: number,
   keys: string[],
   overdueKey: string,
 ): Promise<Record<string, DerivedEvent[]>> {
@@ -41,7 +42,9 @@ export async function buildEventsByDate(
     })
     .from(events)
     .leftJoin(users, eq(events.assigneeId, users.id))
-    .where(inArray(events.date, keys));
+    .where(
+      and(eq(events.householdId, householdId), inArray(events.date, keys)),
+    );
 
   for (const e of evRows) {
     byDate[e.date]?.push({
@@ -55,7 +58,7 @@ export async function buildEventsByDate(
     });
   }
 
-  for (const m of await listMaintenanceWithDue()) {
+  for (const m of await listMaintenanceWithDue(householdId)) {
     const key = m.daysUntilDue < 0 ? overdueKey : toYMD(m.nextDue);
     if (!byDate[key]) continue;
     byDate[key].push({

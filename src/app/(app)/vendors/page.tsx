@@ -1,13 +1,19 @@
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { vendors } from "@/db/schema";
 import { createVendor } from "./actions";
+import { requireHousehold } from "@/lib/auth";
 import { VendorRow } from "@/components/vendor-row";
 
 export const dynamic = "force-dynamic";
 
 export default async function VendorsPage() {
-  const all = await db.select().from(vendors).orderBy(asc(vendors.name));
+  const { householdId } = await requireHousehold();
+  const all = await db
+    .select()
+    .from(vendors)
+    .where(eq(vendors.householdId, householdId))
+    .orderBy(asc(vendors.name));
 
   return (
     <div className="space-y-4">

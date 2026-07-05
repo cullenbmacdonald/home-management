@@ -37,9 +37,11 @@ export const getCurrentUser = cache(async () => {
     await db
       .select({
         userId: users.id,
+        householdId: users.householdId,
         username: users.username,
         displayName: users.displayName,
         accentColor: users.accentColor,
+        role: users.role,
         expiresAt: sessions.expiresAt,
       })
       .from(sessions)
@@ -50,9 +52,11 @@ export const getCurrentUser = cache(async () => {
   if (!row || row.expiresAt < new Date()) return null;
   return {
     id: row.userId,
+    householdId: row.householdId,
     username: row.username,
     displayName: row.displayName,
     accentColor: row.accentColor,
+    role: row.role,
   };
 });
 
@@ -63,4 +67,20 @@ export async function requireUser() {
     redirect("/login");
   }
   return user!;
+}
+
+/**
+ * The single choke point for household-scoped data access. Every server action
+ * and page query must derive its household id from here so one household can
+ * never read or mutate another's rows. Returns the current user plus their
+ * household id and role.
+ */
+export async function requireHousehold() {
+  const user = await requireUser();
+  return {
+    userId: user.id,
+    householdId: user.householdId,
+    role: user.role,
+    user,
+  };
 }
