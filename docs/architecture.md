@@ -5,16 +5,18 @@
 | Layer | Choice | Why |
 |---|---|---|
 | Framework | Next.js (App Router, TS) | One codebase; React frontend (wife's stack), server code approachable from Go/Python background |
-| Database | SQLite + Drizzle ORM | Two users, self-hosted: zero ops, one file, typed schema + generated migrations |
+| Database | PostgreSQL + Drizzle ORM | Runs against a shared self-hosted Postgres (one DB/schema per app); typed schema + generated migrations |
 | Styling | Tailwind v4 | Mobile-first utilities, no CSS architecture to maintain |
 | Auth | bcrypt + cookie sessions (own code) | Two fixed accounts; no third-party services anywhere |
-| Deploy | Docker (standalone output) | Single container + one `/data` volume |
+| Deploy | Docker (standalone output) | Single container; `DATABASE_URL` to external Postgres + a small `/data` volume for uploads |
 
 ## Layout
 
 ```
-src/db/          schema.ts (all tables), index.ts (connection + auto-migrate
-                 + first-boot seed), seed.ts
+src/db/          schema.ts (all tables), index.ts (pg pool + Drizzle),
+                 migrate.ts (apply migrations + first-boot seed), seed.ts
+src/instrumentation.ts  runs migrate.ts once on server boot (Next
+                 `register()` hook) — not at build time
 src/lib/         auth.ts (sessions), maintenance.ts (due-date computation),
                  format.ts (dates/money/intervals),
                  notifications.ts (due sweep + unread count + event helpers),
@@ -40,20 +42,22 @@ drizzle/         generated SQL migrations (checked in)
 ## Patterns & conventions
 
 - **Server components read, server actions write.** Pages query Drizzle
-  directly (better-sqlite3 is synchronous — no await on reads) and are
-  `force-dynamic`. Mutations live in each module's `actions.ts`, start with
+  directly (`await` — node-postgres is async) and are `force-dynamic`.
+  Mutations live in each module's `actions.ts`, start with
   `await requireUser()`, and end with `revalidatePath`.
 - **Client components only where needed** — buttons/rows that mutate via
   `useTransition` + server action, or stateful inputs (interval picker).
   They live in `src/components/`.
 - **Due-date logic**: next-due = last completion log's timestamp + interval
   (or item `startDate` when never done). Computed in `src/lib/maintenance.ts`,
-  never stored. Overdue < 0 days; due-soon within `min(7, ceil(interval/2))`
-  days — scaled so short-interval items don't sit in "needs attention"
-  permanently right after being completed.
+  never stored. Overdue < 0 days; due-soon within `min(7, interval - 1)`
+  days — capped below the interval so short-interval items don't sit in
+  "needs attention" permanently right after being completed.
 - **Schema changes**: edit `src/db/schema.ts` → `npm run db:generate` →
-  commit the new file in `drizzle/`. Migrations apply automatically at boot
-  (`src/db/index.ts`), so deploys are just "start the new image".
+  commit the new file in `drizzle/`. Migrations apply automatically on server
+  boot (`src/instrumentation.ts` → `src/db/migrate.ts`), so deploys are just
+  "start the new image". Running in `instrumentation` rather than at import
+  keeps `next build` from needing a live database.
 - **IDs in URLs** are integer PKs; sessions are 64-hex random tokens stored
   server-side (90-day expiry).
 - **Notifications** are generated server-side, never by a cron. A due-check
@@ -87,21 +91,26 @@ by Next) and the session cookie is `SameSite=Lax`.
 
 ## Storage & backups
 
-Everything lives in `DATA_DIR` (default `./data`, `/data` in Docker):
-- `homebase.db` (+ WAL files) — SQLite
-- `uploads/` — documents, stored under random hex names; original filename,
-  mime type, and size kept in the `documents` table
+Data lives in two places:
+- **Postgres** — all application tables (addressed by `DATABASE_URL`). Back up
+  with `pg_dump`.
+- **`DATA_DIR`** (default `./data`, `/data` in Docker) — `uploads/`: documents
+  stored under random hex names; their original filename, mime type, and size
+  are kept in the `documents` table.
 
-Back up the volume, you've backed up the app. WAL mode is on; copy the DB
-with `sqlite3 homebase.db ".backup ..."` if backing up while running.
+Back up both the Postgres database and the `/data` volume and you've backed up
+the whole app.
 
 ## Testing
 
 `npm run e2e` runs `scripts/e2e/run.mjs`, which executes every
 `scripts/e2e/*.spec.mjs` in order against a real Chromium via Playwright. The
-server must already be running on :3777 against a **fresh** DB (`rm -rf data`,
-restart server) — assertions assume first-boot seed state. Each check prints
-`PASS`/`FAIL`; the runner exits non-zero if any spec fails.
+server must already be running on :3777 against a **fresh** Postgres database
+(point `DATABASE_URL` at an empty DB and boot the server, which migrates +
+seeds it) — assertions assume first-boot seed state. Specs read/write the DB
+through `scripts/e2e/db.mjs` (a small async `pg` helper on the same
+`DATABASE_URL`). Each check prints `PASS`/`FAIL`; the runner exits non-zero if
+any spec fails.
 
 Specs (one per module, ~180 checks total): `chrome.spec` (global chrome —
 tabs, back chevron, avatar, fonts, tap targets, light theme), `schema.spec`
@@ -127,22 +136,27 @@ exercised by `schema.spec`.
   its `prefers-color-scheme: dark` block turned the app black for dark-mode
   browsers. globals.css should stay nearly empty; put colors on elements via
   utilities.
-- **`next start` keeps serving stale HTML after a rebuild** — always restart
-  the process after `npm run build` (kill by port: `lsof -ti :3777 | xargs kill`),
+- **`next start` doesn't work with `output: "standalone"`** — it warns and
+  serves nothing useful. Run the built app with `node .next/standalone/server.js`
+  (what Docker does). Always restart the process after `npm run build`,
   otherwise HTML references CSS chunk names that no longer exist (500s).
-- **Deleting `data/` while the server runs doesn't reset anything** — the
-  process holds the old inode. Stop the server first.
+- **To reset to first-boot state, reset the Postgres database** (drop +
+  recreate the DB, or `TRUNCATE` the tables) and restart the server so
+  migrations + seed re-run. Deleting `data/` only clears uploaded documents.
 - **AGENTS.md warning**: this repo's Next.js version may differ from what
   LLMs assume — check `node_modules/next/dist/docs/` when APIs act surprising.
 
 ## Deployment
 
 ```bash
-USER1_PASSWORD=... USER2_PASSWORD=... docker compose up -d --build
+DATABASE_URL=postgres://homebase:...@postgres:5432/homebase \
+  USER1_PASSWORD=... USER2_PASSWORD=... docker compose up -d --build
 ```
 
-Multi-stage Dockerfile builds the standalone server; runtime image contains
-only the standalone bundle, static assets, and `drizzle/` migrations.
+`DATABASE_URL` points at a database/user on your Postgres instance (in
+Portainer, set it as a stack environment variable). Multi-stage Dockerfile
+builds the standalone server; runtime image contains only the standalone
+bundle, static assets, and `drizzle/` migrations, and runs migrations on boot.
 Container listens on :3000 (mapped to host 3000 in compose). Put it behind
 Tailscale or a reverse proxy with TLS — the session cookie is `secure` in
 production, so plain-HTTP LAN access won't keep you logged in.
