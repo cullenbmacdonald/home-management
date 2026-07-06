@@ -4,8 +4,10 @@ import { db } from "@/db";
 import { households, settings, users } from "@/db/schema";
 import { requireHousehold, destroySession } from "@/lib/auth";
 import { getStates, isHaConfigured } from "@/lib/ha";
+import { listConnectedApps } from "@/lib/connected-apps";
 import { HaConfigForm, PasswordForm } from "@/components/settings-forms";
 import { HouseholdSettings } from "@/components/household-settings";
+import { revokeApp } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +65,8 @@ export default async function SettingsPage() {
   } catch {
     entities = "";
   }
+
+  const connectedApps = await listConnectedApps({ householdId, userId });
 
   const configured = await isHaConfigured(householdId);
   const connection = configured ? await getStates(householdId) : null;
@@ -144,6 +148,51 @@ export default async function SettingsPage() {
             entities={entities}
             tokenSaved={tokenSaved}
           />
+        </div>
+      </section>
+
+      {/* Connected apps (MCP / OAuth clients) */}
+      <section className="space-y-2">
+        <h2 className={`${HEADING} mx-1`}>Connected apps</h2>
+        <div className={CARD}>
+          {connectedApps.length === 0 ? (
+            <p className="text-[13px] leading-[1.5] text-[#78716c]">
+              No apps connected yet. Connect Claude (Code or Desktop) over MCP
+              to create tasks, edit groceries, and read your household data.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[#efece9]">
+              {connectedApps.map((app) => (
+                <li
+                  key={app.clientId}
+                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-[14px] font-medium text-[#1c1917]">
+                      {app.clientName}
+                    </div>
+                    <div className="text-[12px] text-[#a8a29e]">
+                      Last connected{" "}
+                      {app.lastUsed ? app.lastUsed.toLocaleString() : "—"}
+                    </div>
+                  </div>
+                  <form
+                    action={async () => {
+                      "use server";
+                      await revokeApp(app.clientId);
+                    }}
+                  >
+                    <button
+                      type="submit"
+                      className="flex-none rounded-lg border border-[#e7e5e4] px-3 py-1.5 text-[13px] font-medium text-[#dc2626]"
+                    >
+                      Revoke
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 

@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { households, settings, users } from "@/db/schema";
 import { requireHousehold } from "@/lib/auth";
 import { createInvite } from "@/lib/invites";
+import { revokeConnectedApp } from "@/lib/connected-apps";
 
 async function setSetting(householdId: number, key: string, value: string) {
   await db
@@ -107,5 +108,12 @@ export async function removeResident(residentId: number): Promise<void> {
   await db
     .delete(users)
     .where(and(eq(users.id, residentId), eq(users.householdId, householdId)));
+  revalidatePath("/settings");
+}
+
+/** Cut off an MCP client's access to this household (Settings > Connected apps). */
+export async function revokeApp(clientId: string): Promise<void> {
+  const ctx = await requireHousehold();
+  await revokeConnectedApp(ctx, clientId);
   revalidatePath("/settings");
 }
