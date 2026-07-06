@@ -10,6 +10,21 @@ function selfUrl(url: URL): string {
 }
 
 /**
+ * The MCP client sends an RFC 8707 `resource` param, but the spec allows either
+ * the canonical MCP URL (…/api/mcp) or the bare server origin, and clients
+ * differ. Accept anything on our own origin — we always bind the issued token
+ * to the canonical resource (`mcpResourceUrl()`) regardless, so audience
+ * validation at the resource server stays strict. Foreign origins are rejected.
+ */
+function resourceAcceptable(resourceParam: string): boolean {
+  try {
+    return new URL(resourceParam).origin === new URL(mcpResourceUrl()).origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * GET /oauth/authorize — validate the request, then either bounce to login
  * (preserving this exact URL via `next`) or render the consent screen.
  */
@@ -21,7 +36,10 @@ export async function GET(req: Request) {
   const responseType = params.get("response_type") ?? "";
   const state = params.get("state") ?? "";
   const scope = params.get("scope") ?? "homebase:read homebase:write";
-  const resource = params.get("resource") ?? mcpResourceUrl();
+  const resourceParam = params.get("resource");
+  // Always bind to our canonical resource; the client's param is only checked
+  // for origin, never trusted as the audience value.
+  const resource = mcpResourceUrl();
   const codeChallenge = params.get("code_challenge") ?? "";
   const codeChallengeMethod = params.get("code_challenge_method") ?? "";
 
@@ -38,7 +56,7 @@ export async function GET(req: Request) {
   if (codeChallengeMethod !== "S256" || !codeChallenge) {
     return redirectWithError(redirectUri, state, "invalid_request", "PKCE S256 is required");
   }
-  if (resource !== mcpResourceUrl()) {
+  if (resourceParam && !resourceAcceptable(resourceParam)) {
     return redirectWithError(redirectUri, state, "invalid_target", "Unknown resource");
   }
 
@@ -76,7 +94,8 @@ export async function POST(req: Request) {
   const redirectUri = String(form.get("redirect_uri") ?? "");
   const state = String(form.get("state") ?? "");
   const scope = String(form.get("scope") ?? "");
-  const resource = String(form.get("resource") ?? "");
+  // Bind to our canonical resource, never a client-supplied value.
+  const resource = mcpResourceUrl();
   const codeChallenge = String(form.get("code_challenge") ?? "");
   const codeChallengeMethod = String(form.get("code_challenge_method") ?? "");
 
