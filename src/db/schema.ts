@@ -7,6 +7,7 @@ import {
   timestamp,
   doublePrecision,
   uniqueIndex,
+  index,
   primaryKey,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -311,6 +312,23 @@ export const oauthRefreshTokens = pgTable("oauth_refresh_tokens", {
   rotatedAt: timestamp("rotated_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
+
+/**
+ * Append-only log of rate-limited events, one row per hit. Used for
+ * fail2ban-style throttling: count rows for a `key` inside a sliding time
+ * window (see src/lib/rate-limit.ts). `key` namespaces the limiter, e.g.
+ * "login:user:<name>", "login:ip:<ip>", "dcr:ip:<ip>". Pruned by the OAuth
+ * cleanup sweep.
+ */
+export const rateLimitHits = pgTable(
+  "rate_limit_hits",
+  {
+    id: serial("id").primaryKey(),
+    key: text("key").notNull(),
+    at: timestamp("at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [index("rate_limit_hits_key_at_idx").on(table.key, table.at)],
+);
 
 export const settings = pgTable(
   "settings",

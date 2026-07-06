@@ -1,6 +1,14 @@
 import { lt, or, and, isNotNull, lte } from "drizzle-orm";
 import { db } from "@/db";
-import { oauthAuthCodes, oauthAccessTokens, oauthRefreshTokens } from "@/db/schema";
+import {
+  oauthAuthCodes,
+  oauthAccessTokens,
+  oauthRefreshTokens,
+  rateLimitHits,
+} from "@/db/schema";
+
+// Rate-limit hits are only meaningful inside their window (≤1h); prune older.
+const RATE_LIMIT_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Delete expired/consumed OAuth rows so the tables don't grow unbounded.
@@ -9,7 +17,8 @@ import { oauthAuthCodes, oauthAccessTokens, oauthRefreshTokens } from "@/db/sche
  */
 export async function sweepExpiredOauthRows() {
   const now = new Date();
-  const [codes, access, refresh] = await Promise.all([
+  const rateLimitCutoff = new Date(now.getTime() - RATE_LIMIT_RETENTION_MS);
+  const [codes, access, refresh, hits] = await Promise.all([
     db
       .delete(oauthAuthCodes)
       .where(or(lt(oauthAuthCodes.expiresAt, now), isNotNull(oauthAuthCodes.consumedAt)))
@@ -27,6 +36,15 @@ export async function sweepExpiredOauthRows() {
         ),
       )
       .returning({ tokenHash: oauthRefreshTokens.tokenHash }),
+    db
+      .delete(rateLimitHits)
+      .where(lt(rateLimitHits.at, rateLimitCutoff))
+      .returning({ id: rateLimitHits.id }),
   ]);
-  return { codesDeleted: codes.length, accessTokensDeleted: access.length, refreshTokensDeleted: refresh.length };
+  return {
+    codesDeleted: codes.length,
+    accessTokensDeleted: access.length,
+    refreshTokensDeleted: refresh.length,
+    rateLimitHitsDeleted: hits.length,
+  };
 }

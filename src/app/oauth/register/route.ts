@@ -2,6 +2,12 @@ import { z } from "zod";
 import { db } from "@/db";
 import { oauthClients } from "@/db/schema";
 import { sha256Hex, randomToken, issuerUrl, oauthError } from "@/lib/oauth";
+import { getClientIp, hit } from "@/lib/rate-limit";
+
+// Dynamic Client Registration is unauthenticated by design; cap it per IP so
+// it can't be used to flood the clients table.
+const DCR_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const DCR_MAX_PER_IP = 20;
 
 // RFC 7591 Dynamic Client Registration — minimal subset we support.
 const RegisterSchema = z.object({
@@ -27,6 +33,15 @@ function isAllowedRedirectUri(uri: string): boolean {
 }
 
 export async function POST(req: Request) {
+  const ip = await getClientIp();
+  if ((await hit(`dcr:ip:${ip}`, DCR_MAX_PER_IP, DCR_WINDOW_MS)).limited) {
+    return oauthError(
+      "temporarily_unavailable",
+      "Too many registrations from this address. Try again later.",
+      429,
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
