@@ -7,7 +7,8 @@
 | Framework | Next.js (App Router, TS) | One codebase; React frontend (wife's stack), server code approachable from Go/Python background |
 | Database | PostgreSQL + Drizzle ORM | Runs against a shared self-hosted Postgres (one DB/schema per app); typed schema + generated migrations |
 | Styling | Tailwind v4 | Mobile-first utilities, no CSS architecture to maintain |
-| Auth | bcrypt + cookie sessions (own code) | Two fixed accounts; no third-party services anywhere |
+| Auth | bcrypt + cookie sessions (own code) | Per-household accounts via signup/invite; no third-party services anywhere |
+| MCP + OAuth | Own OAuth 2.1 server + `mcp-handler` | Lets Claude connect over remote MCP; the app is both authorization server and resource server (see below) |
 | Deploy | Docker (standalone output) | Single container; `DATABASE_URL` to external Postgres + a small `/data` volume for uploads |
 
 ## Layout
@@ -17,12 +18,24 @@ src/db/          schema.ts (all tables), index.ts (pg pool + Drizzle),
                  migrate.ts (apply migrations + first-boot seed), seed.ts
 src/instrumentation.ts  runs migrate.ts once on server boot (Next
                  `register()` hook) — not at build time
-src/lib/         auth.ts (sessions), maintenance.ts (due-date computation),
+src/lib/         auth.ts (sessions + `householdFromToken` for MCP),
+                 maintenance.ts (due-date computation),
                  format.ts (dates/money/intervals),
                  notifications.ts (due sweep + unread count + event helpers),
                  ha.ts (Home Assistant client — states read + service calls),
-                 settings.ts (settings key/value accessors)
+                 oauth.ts (OAuth crypto/PKCE/client helpers),
+                 rate-limit.ts (DB-backed sliding-window limiter),
+                 mcp-tools.ts (the 19 MCP tool definitions),
+                 connected-apps.ts (list/revoke MCP clients),
+                 oauth-cleanup.ts (prune expired tokens + old rate-limit rows),
+                 tasks.ts / groceries-data.ts / meals.ts / household.ts
+                 (Ctx-scoped data fns shared by server actions AND MCP tools)
 src/app/login/   public login page + action
+src/app/signup/  public signup (new household or join via invite)
+src/app/oauth/   OAuth 2.1 authorization server: authorize (+ consent),
+                 token, register (DCR), revoke
+src/app/.well-known/  OAuth metadata (protected-resource + authorization-server)
+src/app/api/[transport]/  the MCP endpoint (/api/mcp) via mcp-handler
 src/app/(app)/   authed pages; one folder per module, each with page.tsx
                  and actions.ts ("use server" mutations). Modules: dashboard
                  (page.tsx at root), maintenance (upkeep), plan (week+meals),
@@ -81,13 +94,59 @@ drizzle/         generated SQL migrations (checked in)
 
 ## Auth model
 
-Two seeded accounts (`USER1_*` / `USER2_*` env vars, defaults
-`cullen`/`steph` + `changeme`, only read when the users table is empty; legacy
-`partner` accounts are renamed to `steph` idempotently at boot).
-`requireUser()` redirects to `/login`; the `(app)` layout calls it so every
-page inside is protected. Document downloads check the session in the route
-handler. No CSRF token: mutations are server actions (POST + origin-checked
-by Next) and the session cookie is `SameSite=Lax`.
+Accounts are per-household. The first user is seeded (`USER1_*` / `USER2_*` env
+vars, defaults `cullen`/`steph` + `changeme`, only read when the users table is
+empty); further users self-serve via `/signup` (create a new household, or join
+one with an invite code). **Usernames are globally unique** (case-insensitive
+unique index on `lower(username)`) so a username identifies exactly one user —
+which is what login relies on. `requireUser()` redirects to `/login`; the
+`(app)` layout calls it so every page inside is protected. `requireHousehold()`
+is the single choke point for household-scoped data — every server action and
+page query derives its `householdId` from it, and every query keeps an
+`and(eq(id), eq(householdId))` guard so one household can never touch another's
+rows. Document downloads check the session in the route handler. No CSRF token:
+mutations are server actions (POST + origin-checked by Next) and the session
+cookie is `SameSite=Lax`.
+
+**Brute-force protection** (`src/lib/rate-limit.ts`): a DB-backed sliding-window
+limiter (table `rate_limit_hits`, no Redis). Login locks out after 5 failed
+attempts per username or 15 per IP within 15 min (reset on success, checked
+before bcrypt); Dynamic Client Registration is capped at 20/hour per IP. Old
+hits are pruned by the OAuth cleanup sweep.
+
+## MCP server & OAuth
+
+Homebase exposes a **remote MCP endpoint** (`POST /api/mcp`, Streamable HTTP via
+`mcp-handler`, stateless) so Claude (Code/Desktop) can read household data and
+manage todos, groceries, meals, and events. The app is **both** the OAuth 2.1
+authorization server and the resource server.
+
+- **Discovery**: `/.well-known/oauth-protected-resource` (points at the AS) and
+  `/.well-known/oauth-authorization-server` (issuer, endpoints, S256). An
+  unauthenticated `/api/mcp` returns `401` + `WWW-Authenticate` with the
+  `resource_metadata` URL, which is how a client bootstraps the flow.
+- **Authorization server** (`src/app/oauth/*`): `register` (RFC 7591 Dynamic
+  Client Registration — Claude registers itself; `http://localhost` redirect
+  URIs are allowed for the CLI/native callback), `authorize` (reuses the login
+  session + a consent screen), `token` (authorization_code + rotating
+  refresh_token), `revoke` (RFC 7009).
+- **Security**: PKCE **S256 required** (plain rejected); auth codes are
+  single-use (60s) claimed atomically; tokens/codes/secrets are SHA-256 hashed
+  at rest; redirect URIs exact-matched; **tokens are audience-bound** to the
+  canonical `MCP_BASE_URL + /api/mcp` and rejected at the resource server
+  otherwise. The RFC 8707 `resource` param is accepted in any form on our own
+  origin but the token is always bound to the canonical resource.
+- **Token → data**: `verifyToken` (in the `[transport]` route) validates the
+  bearer token via `householdFromToken()` and puts `{ householdId, userId }` on
+  the request; each MCP tool builds a `Ctx` from it and calls the same
+  `src/lib/*` data functions the web server actions use. Writes require the
+  `homebase:write` scope.
+- **Management**: Settings → Connected apps lists a household's live MCP clients
+  and revokes them (`src/lib/connected-apps.ts`); expired tokens are swept by
+  `/api/cron/oauth-cleanup` (gated on `CRON_SECRET`).
+- **`MCP_BASE_URL` is mandatory in production** — issuer, metadata, audience,
+  and redirects all derive from it. Unset, it defaults to `localhost:3000` and
+  every client rejects the server.
 
 ## Storage & backups
 
@@ -154,7 +213,11 @@ DATABASE_URL=postgres://homebase:...@postgres:5432/homebase \
 ```
 
 `DATABASE_URL` points at a database/user on your Postgres instance (in
-Portainer, set it as a stack environment variable). Multi-stage Dockerfile
+Portainer, set it as a stack environment variable). For the MCP/OAuth server,
+also set **`MCP_BASE_URL`** to the public HTTPS origin
+(`https://homebase.cullenmacdonald.com` — `docker-compose.yml` defaults to this)
+and optionally **`CRON_SECRET`** to enable the token-cleanup route. Multi-stage
+Dockerfile
 builds the standalone server; runtime image contains only the standalone
 bundle, static assets, and `drizzle/` migrations, and runs migrations on boot.
 Container listens on :3000 (mapped to host 3000 in compose). Put it behind

@@ -18,13 +18,17 @@ Features:
 - **Home Assistant** — temperature tiles, thermostat ± , lock and switch
   toggles, all proxied server-side.
 - **Notifications** — daily due sweep + completion/wishlist events, bell badge.
-- **Settings** — account, password change, Home Assistant connection.
+- **Settings** — account, password change, Home Assistant connection, connected
+  MCP apps.
+- **Claude (MCP)** — connect Claude over remote MCP behind an OAuth 2.1 flow to
+  read the household and manage todos, groceries, meals, and events (see below).
 
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind
 - PostgreSQL via Drizzle ORM (external instance, one DB/schema per app)
-- Simple cookie-session auth, two seeded accounts
+- Cookie-session auth (per-household signup/invite), with brute-force rate limiting
+- Own OAuth 2.1 server + MCP endpoint (`mcp-handler`) for Claude connectivity
 - Self-hosted via Docker
 
 ## Development
@@ -72,6 +76,27 @@ Set `DATABASE_URL` to a database on your Postgres instance (see
 `docker-compose.yml`). Uploaded documents live in the `homebase-data` volume at
 `/data`; the rest of the data lives in Postgres. Back up both.
 
+For the Claude/MCP integration, also set **`MCP_BASE_URL`** to the public HTTPS
+origin (`docker-compose.yml` defaults it to `https://homebase.cullenmacdonald.com`)
+and, optionally, **`CRON_SECRET`** to enable the expired-token cleanup route.
+`MCP_BASE_URL` is required — without it the OAuth server advertises `localhost`
+and clients refuse to connect.
+
+## Connect Claude (MCP)
+
+Homebase runs its own OAuth 2.1 server and a remote MCP endpoint at `/api/mcp`,
+so Claude can read the household and manage todos, groceries, meals, and events.
+
+```bash
+claude mcp add --transport http homebase https://homebase.cullenmacdonald.com/api/mcp
+```
+
+Then run the client's authenticate step: it registers itself (Dynamic Client
+Registration), opens the browser to the Homebase login + a consent screen, and
+on approval gets a scoped token. Reads need `homebase:read`, writes need
+`homebase:write`. Manage or revoke connected clients under **Settings →
+Connected apps**. Requires a public HTTPS origin and `MCP_BASE_URL` set to it.
+
 ## Layout
 
 - `src/db/` — schema, connection, migrations bootstrap, seed
@@ -82,4 +107,6 @@ Set `DATABASE_URL` to a database on your Postgres instance (see
 ## Docs
 
 - [docs/product.md](docs/product.md) — vision, UX principles, feature specs, roadmap
-- [docs/architecture.md](docs/architecture.md) — stack, conventions, auth, testing, deployment, gotchas
+- [docs/architecture.md](docs/architecture.md) — stack, conventions, auth, MCP/OAuth, testing, deployment, gotchas
+- [docs/mcp-oauth-plan.md](docs/mcp-oauth-plan.md) — MCP + OAuth 2.1 design record (shipped)
+- [docs/instacart-integration-plan.md](docs/instacart-integration-plan.md) — Instacart integration research/plan (not yet built)

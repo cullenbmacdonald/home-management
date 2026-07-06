@@ -1,5 +1,18 @@
 # Homebase MCP + OAuth 2.1 — Design & Build Plan
 
+> **STATUS: ✅ SHIPPED (2026-07-06).** Live at `https://homebase.cullenmacdonald.com/api/mcp`
+> and connected from Claude Code. P1–P5 complete; P6 (live handshake) done. This doc is kept
+> as the design record — for how it actually works today see the "MCP server & OAuth" section
+> of `docs/architecture.md`. Notable deltas from the original plan, discovered during rollout:
+> - **Canonical endpoint** is `/api/mcp` (route `src/app/api/[transport]/route.ts`, `basePath:/api`).
+> - **`resource` param leniency** — Claude Code sends the RFC 8707 resource indicator as the
+>   bare origin, not `…/api/mcp`; `/oauth/authorize` accepts any resource on our origin but
+>   always binds the token to the canonical resource (audience validation stays strict).
+> - **`MCP_BASE_URL` is mandatory in prod** — everything (issuer, metadata, audience, redirects)
+>   derives from it; without it the server advertises `localhost:3000` and every client rejects it.
+> - **Added beyond the plan:** DB-backed rate limiting (login lockout + DCR cap), globally-unique
+>   usernames (fixed a latent login-ambiguity bug), and `docker-compose` env wiring.
+
 **Goal:** Let Claude (Claude Code + Claude Desktop) connect to Homebase over remote MCP
 and do real work — create todos, edit the grocery list, read across the household — behind
 a proper OAuth 2.1 authorization flow.
