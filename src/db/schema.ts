@@ -38,9 +38,9 @@ export const users = pgTable(
       .default("member"),
   },
   (table) => [
-    // Usernames are unique within a household, not globally.
-    uniqueIndex("users_household_username_unique").on(
-      table.householdId,
+    // Usernames are unique across the whole app (case-insensitive), so a
+    // username identifies exactly one user — which is what login relies on.
+    uniqueIndex("users_username_lower_unique").on(
       sql`lower(${table.username})`,
     ),
   ],

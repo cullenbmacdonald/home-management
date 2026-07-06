@@ -1,7 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { and, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { households, users } from "@/db/schema";
@@ -29,18 +29,13 @@ function parse(formData: FormData): Parsed {
   };
 }
 
-/** True if `username` is already taken within the given household. */
-async function usernameTaken(householdId: number, username: string) {
+/** True if `username` is already taken by any user across the app. */
+async function usernameTaken(username: string) {
   const row = (
     await db
       .select({ id: users.id })
       .from(users)
-      .where(
-        and(
-          eq(users.householdId, householdId),
-          sql`lower(${users.username}) = ${username}`,
-        ),
-      )
+      .where(sql`lower(${users.username}) = ${username}`)
       .limit(1)
   )[0];
   return !!row;
@@ -58,14 +53,15 @@ export async function signup(
   if (!/^[a-z0-9_.-]+$/.test(username))
     return "Username may only contain letters, numbers, and . _ -";
 
+  // Usernames are unique across the whole app.
+  if (await usernameTaken(username)) return "That username is already taken";
+
   let userId: number;
 
   if (inviteCode) {
     // Joining an existing household via invite.
     const invite = await findValidInvite(inviteCode);
     if (!invite) return "That invite link is invalid or has expired";
-    if (await usernameTaken(invite.householdId, username))
-      return "That username is already taken in this household";
 
     const [user] = await db
       .insert(users)
