@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { oauthClients } from "@/db/schema";
 import { sha256Hex } from "@/lib/auth";

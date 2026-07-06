@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { staples, groceryItems, type GroceryCategory } from "@/db/schema";
 import { isGroceryCategory } from "@/lib/groceries";
-import * as groceriesLib from "@/lib/groceries";
+import * as groceriesLib from "@/lib/groceries-data";
 import { requireHousehold } from "@/lib/auth";
 
 function refresh() {

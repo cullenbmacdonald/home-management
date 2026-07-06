@@ -4,7 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import type { Ctx } from "@/lib/auth";
 import * as tasksLib from "@/lib/tasks";
-import * as groceriesLib from "@/lib/groceries";
+import * as groceriesLib from "@/lib/groceries-data";
 import * as mealsLib from "@/lib/meals";
 import * as householdLib from "@/lib/household";
 import { getMealPlan } from "@/lib/meals";
