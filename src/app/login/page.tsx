@@ -1,11 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { login } from "./actions";
 
 export default function LoginPage() {
   const [error, formAction, pending] = useActionState(login, null);
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") ?? "";
   return (
     <main className="flex min-h-dvh items-center justify-center bg-[#e7e5e4] p-6">
       <form
@@ -18,6 +21,7 @@ export default function LoginPage() {
           </h1>
           <p className="mt-2 text-sm text-[#a8a29e]">Our home, managed.</p>
         </div>
+        {next && <input type="hidden" name="next" value={next} />}
         <input
           name="username"
           placeholder="Username"

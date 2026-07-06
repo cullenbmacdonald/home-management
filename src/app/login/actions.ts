@@ -19,5 +19,18 @@ export async function login(_prev: string | null, formData: FormData) {
     return "Wrong username or password";
   }
   await createSession(user.id);
-  redirect("/");
+  redirect(safeNextPath(formData.get("next")));
+}
+
+/**
+ * Only ever redirect within this origin after login — `next` rides through a
+ * query param (e.g. from the OAuth /authorize hop) and must never become an
+ * open redirect. Accepts a path starting with a single "/" only.
+ */
+function safeNextPath(value: FormDataEntryValue | null): string {
+  const raw = typeof value === "string" ? value : "";
+  if (raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\")) {
+    return raw;
+  }
+  return "/";
 }
