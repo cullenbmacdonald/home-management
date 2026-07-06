@@ -7,6 +7,7 @@ import {
   timestamp,
   doublePrecision,
   uniqueIndex,
+  index,
   primaryKey,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -37,9 +38,9 @@ export const users = pgTable(
       .default("member"),
   },
   (table) => [
-    // Usernames are unique within a household, not globally.
-    uniqueIndex("users_household_username_unique").on(
-      table.householdId,
+    // Usernames are unique across the whole app (case-insensitive), so a
+    // username identifies exactly one user — which is what login relies on.
+    uniqueIndex("users_username_lower_unique").on(
       sql`lower(${table.username})`,
     ),
   ],
@@ -249,6 +250,85 @@ export const notifications = pgTable("notifications", {
   readAt: timestamp("read_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// OAuth 2.1 (Authorization Server + Resource Server for the MCP endpoint).
+// Tokens/codes/secrets are stored as SHA-256 hex hashes, never raw values.
+// ---------------------------------------------------------------------------
+
+export const oauthClients = pgTable("oauth_clients", {
+  clientId: text("client_id").primaryKey(),
+  clientSecretHash: text("client_secret_hash"), // null => public client
+  clientName: text("client_name").notNull(),
+  redirectUris: text("redirect_uris").array().notNull(),
+  grantTypes: text("grant_types").array().notNull(),
+  tokenEndpointAuthMethod: text("token_endpoint_auth_method").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+export const oauthAuthCodes = pgTable("oauth_auth_codes", {
+  codeHash: text("code_hash").primaryKey(),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => oauthClients.clientId, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  redirectUri: text("redirect_uri").notNull(),
+  codeChallenge: text("code_challenge").notNull(),
+  codeChallengeMethod: text("code_challenge_method").notNull(),
+  scope: text("scope").notNull(),
+  resource: text("resource").notNull(),
+  expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  consumedAt: timestamp("consumed_at", { mode: "date" }),
+});
+
+export const oauthAccessTokens = pgTable("oauth_access_tokens", {
+  tokenHash: text("token_hash").primaryKey(),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => oauthClients.clientId, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  householdId: householdId(),
+  scope: text("scope").notNull(),
+  resource: text("resource").notNull(),
+  expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+export const oauthRefreshTokens = pgTable("oauth_refresh_tokens", {
+  tokenHash: text("token_hash").primaryKey(),
+  clientId: text("client_id")
+    .notNull()
+    .references(() => oauthClients.clientId, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  scope: text("scope").notNull(),
+  resource: text("resource").notNull(),
+  expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  rotatedAt: timestamp("rotated_at", { mode: "date" }),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+/**
+ * Append-only log of rate-limited events, one row per hit. Used for
+ * fail2ban-style throttling: count rows for a `key` inside a sliding time
+ * window (see src/lib/rate-limit.ts). `key` namespaces the limiter, e.g.
+ * "login:user:<name>", "login:ip:<ip>", "dcr:ip:<ip>". Pruned by the OAuth
+ * cleanup sweep.
+ */
+export const rateLimitHits = pgTable(
+  "rate_limit_hits",
+  {
+    id: serial("id").primaryKey(),
+    key: text("key").notNull(),
+    at: timestamp("at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [index("rate_limit_hits_key_at_idx").on(table.key, table.at)],
+);
 
 export const settings = pgTable(
   "settings",

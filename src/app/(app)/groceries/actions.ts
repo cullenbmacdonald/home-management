@@ -1,10 +1,11 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { groceryItems, staples, type GroceryCategory } from "@/db/schema";
+import { staples, groceryItems, type GroceryCategory } from "@/db/schema";
 import { isGroceryCategory } from "@/lib/groceries";
+import * as groceriesLib from "@/lib/groceries-data";
 import { requireHousehold } from "@/lib/auth";
 
 function refresh() {
@@ -18,32 +19,20 @@ export async function addGroceryItem(
   category: string,
   qty?: string,
 ) {
-  const { householdId } = await requireHousehold();
-  const trimmed = name.trim();
-  if (!trimmed) return;
-  const cat: GroceryCategory = isGroceryCategory(category)
-    ? category
-    : "produce";
-  await db
-    .insert(groceryItems)
-    .values({ householdId, name: trimmed, category: cat, qty: qty?.trim() || null });
+  const ctx = await requireHousehold();
+  await groceriesLib.addGroceryItem(ctx, name, category, qty);
   refresh();
 }
 
 export async function toggleGroceryItem(id: number) {
-  const { householdId } = await requireHousehold();
-  await db
-    .update(groceryItems)
-    .set({ checked: sql`NOT ${groceryItems.checked}` })
-    .where(and(eq(groceryItems.id, id), eq(groceryItems.householdId, householdId)));
+  const ctx = await requireHousehold();
+  await groceriesLib.checkGroceryItem(ctx, id);
   refresh();
 }
 
 export async function deleteGroceryItem(id: number) {
-  const { householdId } = await requireHousehold();
-  await db
-    .delete(groceryItems)
-    .where(and(eq(groceryItems.id, id), eq(groceryItems.householdId, householdId)));
+  const ctx = await requireHousehold();
+  await groceriesLib.removeGroceryItem(ctx, id);
   refresh();
 }
 
@@ -53,29 +42,8 @@ export async function deleteGroceryItem(id: number) {
  * matches alone. Name matching is case-insensitive.
  */
 export async function restockStaples() {
-  const { householdId } = await requireHousehold();
-  const pool = await db
-    .select()
-    .from(staples)
-    .where(eq(staples.householdId, householdId));
-  const active = await db
-    .select()
-    .from(groceryItems)
-    .where(eq(groceryItems.householdId, householdId));
-  const byName = new Map(active.map((g) => [g.name.toLowerCase(), g]));
-  for (const s of pool) {
-    const existing = byName.get(s.name.toLowerCase());
-    if (!existing) {
-      await db
-        .insert(groceryItems)
-        .values({ householdId, name: s.name, category: s.category, isStaple: true });
-    } else if (existing.checked) {
-      await db
-        .update(groceryItems)
-        .set({ checked: false })
-        .where(eq(groceryItems.id, existing.id));
-    }
-  }
+  const ctx = await requireHousehold();
+  await groceriesLib.restockStaples(ctx);
   refresh();
 }
 

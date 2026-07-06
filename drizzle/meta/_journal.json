@@ -8,6 +8,27 @@
       "when": 1783180861500,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783298254399,
+      "tag": "0001_odd_zaladane",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783301536341,
+      "tag": "0002_tranquil_microchip",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783301926383,
+      "tag": "0003_bizarre_aaron_stack",
+      "breakpoints": true
     }
   ]
 }

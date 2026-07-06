@@ -1,12 +1,61 @@
 import { cookies } from "next/headers";
 import { cache } from "react";
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import crypto from "crypto";
 import { db } from "@/db";
-import { sessions, users } from "@/db/schema";
+import { sessions, users, oauthAccessTokens } from "@/db/schema";
 
 const SESSION_COOKIE = "homebase_session";
 const SESSION_DAYS = 90;
+
+/**
+ * The household-scoped principal every `src/lib/*` function operates on,
+ * regardless of whether it arrived via a browser session (`requireHousehold`)
+ * or a validated MCP bearer token (`householdFromToken`).
+ */
+export type Ctx = { householdId: number; userId: number };
+
+/** Canonical resource URI for this server's MCP endpoint (token audience). */
+export function mcpResourceUrl() {
+  const base = process.env.MCP_BASE_URL ?? "http://localhost:3000";
+  return `${base.replace(/\/$/, "")}/api/mcp`;
+}
+
+export function sha256Hex(value: string) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+/**
+ * Validate an MCP bearer token: hash lookup, not expired, audience matches
+ * this server's canonical resource. Returns null on any failure so callers
+ * can respond 401 without distinguishing why.
+ */
+export async function householdFromToken(
+  token: string,
+): Promise<(Ctx & { clientId: string; scope: string }) | null> {
+  if (!token) return null;
+  const tokenHash = sha256Hex(token);
+  const row = (
+    await db
+      .select()
+      .from(oauthAccessTokens)
+      .where(
+        and(
+          eq(oauthAccessTokens.tokenHash, tokenHash),
+          gt(oauthAccessTokens.expiresAt, new Date()),
+        ),
+      )
+      .limit(1)
+  )[0];
+  if (!row) return null;
+  if (row.resource !== mcpResourceUrl()) return null;
+  return {
+    householdId: row.householdId,
+    userId: row.userId,
+    clientId: row.clientId,
+    scope: row.scope,
+  };
+}
 
 export async function createSession(userId: number) {
   const id = crypto.randomBytes(32).toString("hex");
