@@ -207,19 +207,31 @@ exercised by `schema.spec`.
 
 ## Deployment
 
+Production runs on a shared VPS at **https://homebase.casa** (+ staging at
+**https://staging.homebase.casa**), behind the `platform` repo's shared Caddy
+(it owns TLS and ports 80/443; app containers join an external `edge` network and
+are proxied by hostname). Deploy is via `infra/` — see
+[`infra/README.md`](../infra/README.md):
+
 ```bash
-DATABASE_URL=postgres://homebase:...@postgres:5432/homebase \
-  USER1_PASSWORD=... USER2_PASSWORD=... docker compose up -d --build
+./infra/deploy.sh deploy@<server> -i ~/.ssh/key          # staging
+./infra/deploy.sh deploy@<server> --prod -i ~/.ssh/key   # promote to prod
 ```
 
-`DATABASE_URL` points at a database/user on your Postgres instance (in
-Portainer, set it as a stack environment variable). For the MCP/OAuth server,
-also set **`MCP_BASE_URL`** to the public HTTPS origin
-(`https://homebase.cullenmacdonald.com` — `docker-compose.yml` defaults to this)
-and optionally **`CRON_SECRET`** to enable the token-cleanup route. Multi-stage
-Dockerfile
-builds the standalone server; runtime image contains only the standalone
-bundle, static assets, and `drizzle/` migrations, and runs migrations on boot.
-Container listens on :3000 (mapped to host 3000 in compose). Put it behind
-Tailscale or a reverse proxy with TLS — the session cookie is `secure` in
-production, so plain-HTTP LAN access won't keep you logged in.
+The image is built on the box, tagged by git commit; staging builds it and prod
+reuses the same tag (staging-first promotion gate). A shared Postgres holds two
+databases (`homebase` / `homebase_staging`). For the MCP/OAuth server,
+**`MCP_BASE_URL`** must be the public HTTPS origin (`https://homebase.casa` /
+`https://staging.homebase.casa`, set per environment in
+`infra/docker-compose.yml`); optionally **`CRON_SECRET`** enables the
+token-cleanup route.
+
+The multi-stage Dockerfile builds Next's standalone output; the runtime image
+contains only the standalone bundle, static assets, and `drizzle/` migrations,
+and runs migrations on boot. The container listens on :3000 and sets
+`HOSTNAME=0.0.0.0` so the platform Caddy can reach it. The session cookie is
+`secure` in production, so it must be served over HTTPS (which the platform
+provides).
+
+> The root `docker-compose.yml` (`docker compose up -d --build`) is a legacy
+> standalone file for local one-off runs, not the VPS deployment.

@@ -68,19 +68,29 @@ guarantees.
 
 ## Self-hosting
 
+Homebase is deployed to a shared VPS at **https://homebase.casa** (prod) and
+**https://staging.homebase.casa** (staging), behind a shared reverse proxy (the
+`platform` repo owns TLS + ports 80/443). The full deploy — build-on-box,
+staging-first promotion, shared Postgres — is documented in
+**[`infra/README.md`](infra/README.md)**:
+
 ```bash
-USER1_PASSWORD=... USER2_PASSWORD=... docker compose up -d --build
+./infra/deploy.sh deploy@<server> -i ~/.ssh/key          # -> staging
+./infra/deploy.sh deploy@<server> --prod -i ~/.ssh/key   # promote to prod
 ```
 
-Set `DATABASE_URL` to a database on your Postgres instance (see
-`docker-compose.yml`). Uploaded documents live in the `homebase-data` volume at
-`/data`; the rest of the data lives in Postgres. Back up both.
+Uploaded documents live in a per-environment `/data` volume; the rest of the
+data lives in Postgres. Back up both.
 
-For the Claude/MCP integration, also set **`MCP_BASE_URL`** to the public HTTPS
-origin (`docker-compose.yml` defaults it to `https://homebase.cullenmacdonald.com`)
-and, optionally, **`CRON_SECRET`** to enable the expired-token cleanup route.
-`MCP_BASE_URL` is required — without it the OAuth server advertises `localhost`
-and clients refuse to connect.
+For the Claude/MCP integration, **`MCP_BASE_URL`** must be the public HTTPS
+origin (`https://homebase.casa` for prod, `https://staging.homebase.casa` for
+staging — set per environment in `infra/docker-compose.yml`) and, optionally,
+**`CRON_SECRET`** enables the expired-token cleanup route. `MCP_BASE_URL` is
+required — without it the OAuth server advertises `localhost` and clients refuse
+to connect.
+
+> The root `docker-compose.yml` is a legacy single-container standalone file for
+> local one-off runs; the VPS deployment uses `infra/` instead.
 
 ## Connect Claude (MCP)
 
@@ -88,7 +98,7 @@ Homebase runs its own OAuth 2.1 server and a remote MCP endpoint at `/api/mcp`,
 so Claude can read the household and manage todos, groceries, meals, and events.
 
 ```bash
-claude mcp add --transport http homebase https://homebase.cullenmacdonald.com/api/mcp
+claude mcp add --transport http homebase https://homebase.casa/api/mcp
 ```
 
 Then run the client's authenticate step: it registers itself (Dynamic Client

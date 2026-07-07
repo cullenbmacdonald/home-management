@@ -21,7 +21,7 @@ services:
       # Public canonical origin — used to build OAuth issuer/metadata, the MCP
       # token audience, and redirect URIs. MUST be the real HTTPS origin in
       # production or the whole OAuth/MCP flow breaks (defaults to localhost).
-      MCP_BASE_URL: ${MCP_BASE_URL:-https://homebase.cullenmacdonald.com}
+      MCP_BASE_URL: ${MCP_BASE_URL:-https://homebase.casa}
       # Shared secret for the token-cleanup route (/api/cron/oauth-cleanup).
       # Leave empty to disable the route (it 404s without it).
       CRON_SECRET: ${CRON_SECRET:-}

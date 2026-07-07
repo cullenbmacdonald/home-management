@@ -1,6 +1,6 @@
 # Homebase MCP + OAuth 2.1 — Design & Build Plan
 
-> **STATUS: ✅ SHIPPED (2026-07-06).** Live at `https://homebase.cullenmacdonald.com/api/mcp`
+> **STATUS: ✅ SHIPPED (2026-07-06).** Live at `https://homebase.casa/api/mcp`
 > and connected from Claude Code. P1–P5 complete; P6 (live handshake) done. This doc is kept
 > as the design record — for how it actually works today see the "MCP server & OAuth" section
 > of `docs/architecture.md`. Notable deltas from the original plan, discovered during rollout:

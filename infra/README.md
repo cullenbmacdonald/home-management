@@ -117,12 +117,14 @@ docker compose exec -T postgres pg_dump -U homebase homebase_staging  > staging-
 | `init-db.sql`        | Creates the staging database on first boot |
 | `.env.example`       | Environment template (copied to `.env` by `--init`) |
 
-## Notes / migrating off the old host
+## Notes
 
-- The app previously ran at `homebase.cullenmacdonald.com`. To carry its data
-  over: `pg_dump` the old database and `psql` it into the new `homebase`
-  database, and copy the old `/data` uploads into the `homebase-data-prod`
-  volume, before the first prod deploy serves traffic.
+- The app previously ran at `homebase.cullenmacdonald.com` (a separate
+  single-box deployment). It was retired and **no data was migrated** — prod at
+  `homebase.casa` was seeded fresh (`cullen` + `madison`). If you ever need to
+  carry data between hosts: `pg_dump` the source DB → `psql` into the target
+  `homebase` DB, and copy `/data` uploads into the `homebase-data-prod` volume,
+  before the target prod deploy serves traffic.
 - The root `docker-compose.yml` is the old single-service standalone file. It's
   superseded by this one for the VPS; keep it only if you still use it for
   local one-off runs.
