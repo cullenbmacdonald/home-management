@@ -1,10 +1,14 @@
 # Homebase — staging + production on a single box.
 #
-# One compose project runs everything:
-#   - postgres      shared PG instance, holds two databases (prod + staging)
-#   - app-prod      Next.js app for homebase.casa
-#   - app-staging   Next.js app for staging.homebase.casa
-#   - caddy         reverse proxy, automatic TLS for both domains
+# One compose project runs the app tier:
+#   - postgres              shared PG instance, holds two databases (prod + staging)
+#   - homebase-app-prod     Next.js app for homebase.casa
+#   - homebase-app-staging  Next.js app for staging.homebase.casa
+#
+# The edge (ports 80/443 + TLS) is owned by the separate "platform" repo, which
+# runs a shared Caddy and proxies to these app containers by name over the
+# external `edge` Docker network. Postgres stays on the private `homebase`
+# network only and is never reachable from the edge.
 #
 # The two app services are pinned to independent image tags
 # (PROD_IMAGE_TAG / STAGING_IMAGE_TAG), both written into .env by deploy.sh.
@@ -33,7 +37,7 @@ services:
       timeout: 5s
       retries: 5
 
-  app-prod:
+  homebase-app-prod:
     image: homebase:${PROD_IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
@@ -54,10 +58,11 @@ services:
       - homebase-data-prod:/data
     networks:
       - homebase
+      - edge
     expose:
       - "3000"
 
-  app-staging:
+  homebase-app-staging:
     image: homebase:${STAGING_IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
@@ -77,28 +82,9 @@ services:
       - homebase-data-staging:/data
     networks:
       - homebase
+      - edge
     expose:
       - "3000"
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      - app-prod
-      - app-staging
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"  # HTTP/3
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    environment:
-      - DOMAIN=${DOMAIN:?DOMAIN is required}
-      - STAGING_DOMAIN=${STAGING_DOMAIN:?STAGING_DOMAIN is required}
-    networks:
-      - homebase
 
 volumes:
   homebase-pg:
@@ -107,11 +93,10 @@ volumes:
     name: homebase-data-prod
   homebase-data-staging:
     name: homebase-data-staging
-  caddy-data:
-    name: caddy-data
-  caddy-config:
-    name: caddy-config
 
 networks:
   homebase:
     name: homebase
+  edge:
+    external: true
+    name: edge

@@ -1,44 +1,62 @@
 # Homebase Infrastructure
 
 Staging + production for Homebase, both on a **single VPS**, from **one Docker
-Compose project**.
+Compose project**. This project runs only the **app tier** (Postgres + the two
+Next.js app containers). The **edge** — ports 80/443, TLS, and hostname routing
+— is owned by a separate **platform** repo whose shared Caddy proxies to these
+containers by name over an external Docker network named `edge`.
 
 ```
-┌──────────────────────── VPS ────────────────────────┐
-│                                                      │
-│   ┌─────────┐   homebase.casa          ┌──────────┐  │
-│   │  Caddy  │──────────────────────────│ app-prod │──┐
-│   │ :80/443 │   staging.homebase.casa  └──────────┘  │ │
-│   │         │──────────────┐           ┌──────────┐  │ │
-│   └─────────┘              └───────────│app-staging│─┤ │
-│                                        └──────────┘  │ │
-│                                    ┌──────────────┐  │ │
-│                                    │  postgres    │◀─┴─┘
+┌──────────────────────── VPS ────────────────────────────────┐
+│                                                              │
+│  platform repo (separate compose project)                    │
+│   ┌─────────┐   homebase.casa          ┌───────────────────┐ │
+│   │  Caddy  │──────────────────────────│ homebase-app-prod │─┐│
+│   │ :80/443 │   staging.homebase.casa  └───────────────────┘ ││
+│   │  (edge) │────────────┐   ┌────────────────────────────┐  ││
+│   └─────────┘            └───│    homebase-app-staging     │──┤│
+│      via external `edge` net └────────────────────────────┘  ││
+│                                    ┌──────────────┐          ││
+│                                    │  postgres    │◀─────────┴┘
 │                                    │  homebase          (prod db)
 │                                    │  homebase_staging  (staging db)
-│                                    └──────────────┘  │
-└──────────────────────────────────────────────────────┘
+│                                    │  (private `homebase` net only)
+│                                    └──────────────┘          │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-- **Caddy** terminates TLS (auto Let's Encrypt) for both domains and proxies
-  each to its app container.
-- **postgres** is one shared instance holding two databases. `init-db.sql`
-  creates the staging database on first boot.
-- **app-prod / app-staging** are the same Next.js image, each pinned to an
-  independent tag (`PROD_IMAGE_TAG` / `STAGING_IMAGE_TAG`) and pointed at its
-  own database, uploads volume, and `MCP_BASE_URL`.
+- **Edge / TLS** live in the platform repo, not here. Its Caddy terminates TLS
+  (auto Let's Encrypt) for both domains and reverse-proxies each hostname to the
+  matching app container (`homebase-app-prod:3000` / `homebase-app-staging:3000`)
+  over the shared `edge` network. DNS and certs are handled there too.
+- **postgres** is one shared instance holding two databases, on the private
+  `homebase` network **only** (never on the edge). `init-db.sql` creates the
+  staging database on first boot.
+- **homebase-app-prod / homebase-app-staging** are the same Next.js image, each
+  pinned to an independent tag (`PROD_IMAGE_TAG` / `STAGING_IMAGE_TAG`) and
+  pointed at its own database, uploads volume, and `MCP_BASE_URL`. Both are
+  attached to `[homebase, edge]` so the platform Caddy can reach them.
 
 The app runs its own DB migrations + first-run seed on boot (Next.js
 instrumentation), so there's no separate migration step.
 
+> **Prerequisites:** the external `edge` network and the platform (its Caddy)
+> must exist before deploying. Create the network once on the box with
+> `docker network create edge`, and deploy the platform repo so something is
+> serving 80/443. Without them the app containers still run but nothing proxies
+> to them.
+
 ## First-time setup
 
-1. **DNS** — point both records at the box:
+1. **Edge + DNS** — DNS and the firewall (ports 80/443) are handled by the
+   platform repo. Make sure the external network and platform Caddy exist on the
+   box before deploying homebase:
    ```
-   homebase.casa          -> <server IP>
-   staging.homebase.casa  -> <server IP>
+   docker network create edge      # once, idempotent
+   # then deploy the platform repo so its Caddy owns 80/443 + TLS
    ```
-   Ensure the firewall allows 80 and 443.
+   DNS records (`homebase.casa`, `staging.homebase.casa` -> server IP) point at
+   the platform Caddy.
 
 2. **Init** — syncs the repo to `/opt/homebase`, creates `infra/.env`, and
    generates secrets (Postgres password, both users' first-boot passwords,
@@ -75,13 +93,12 @@ your work before deploying prod, or the `-dirty` tag will block promotion.
 ## Operations (run from `/opt/homebase/infra` on the box)
 
 ```bash
-docker compose ps                       # status of all services
-docker compose logs -f app-prod         # prod app logs
-docker compose logs -f app-staging      # staging app logs
-docker compose logs -f caddy            # TLS / proxy logs
+docker compose ps                              # status of all services
+docker compose logs -f homebase-app-prod       # prod app logs
+docker compose logs -f homebase-app-staging    # staging app logs
 docker compose exec postgres psql -U homebase homebase          # prod DB shell
 docker compose exec postgres psql -U homebase homebase_staging  # staging DB shell
-docker compose restart caddy            # reload proxy
+# TLS / proxy logs live in the platform repo (its Caddy owns the edge).
 ```
 
 ### Backups
@@ -96,8 +113,7 @@ docker compose exec -T postgres pg_dump -U homebase homebase_staging  > staging-
 | File | Purpose |
 |------|---------|
 | `deploy.sh`          | Deploy script (run from your laptop) |
-| `docker-compose.yml` | Both environments + shared Caddy & Postgres |
-| `Caddyfile`          | Reverse proxy + automatic TLS |
+| `docker-compose.yml` | Both app environments + shared Postgres (edge lives in the platform repo) |
 | `init-db.sql`        | Creates the staging database on first boot |
 | `.env.example`       | Environment template (copied to `.env` by `--init`) |
 

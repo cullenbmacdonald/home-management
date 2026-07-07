@@ -8,8 +8,10 @@
 # Use --prod to promote to PRODUCTION (homebase.casa).
 #
 # Model: both environments run on one box from a single compose project,
-# sharing one Caddy and one Postgres (two databases). The image is built ON
-# the box and tagged with the git commit. Staging runs the freshly built tag
+# sharing one Postgres (two databases). The edge (ports 80/443 + TLS) is owned
+# by the separate "platform" repo, whose shared Caddy proxies to these app
+# containers over the external `edge` network. The image is built ON the box
+# and tagged with the git commit. Staging runs the freshly built tag
 # immediately; production only runs a commit that was already deployed to
 # staging (promotion gate). No registry needed — both containers use the same
 # Docker daemon.
@@ -69,9 +71,9 @@ SSH_OPTS=""
 [[ -n "$SSH_IDENTITY" ]] && SSH_OPTS="-i $SSH_IDENTITY"
 
 if $PROD_MODE; then
-    ENV_LABEL="production"; APP_SERVICE="app-prod"; TAG_VAR="PROD_IMAGE_TAG"; HEALTH_HOST="homebase.casa"
+    ENV_LABEL="production"; APP_SERVICE="homebase-app-prod"; TAG_VAR="PROD_IMAGE_TAG"; HEALTH_HOST="homebase.casa"
 else
-    ENV_LABEL="staging";    APP_SERVICE="app-staging"; TAG_VAR="STAGING_IMAGE_TAG"; HEALTH_HOST="staging.homebase.casa"
+    ENV_LABEL="staging";    APP_SERVICE="homebase-app-staging"; TAG_VAR="STAGING_IMAGE_TAG"; HEALTH_HOST="staging.homebase.casa"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -184,9 +186,9 @@ ssh $SSH_OPTS "$DEPLOY_USER_HOST" bash <<ENDSSH
     sed -i "/^${TAG_VAR}=/d" .env
     echo "${TAG_VAR}=$GIT_COMMIT" >> .env
 
-    # Bring up shared services (postgres, caddy) without disturbing them, then
+    # Bring up shared services (postgres) without disturbing them, then
     # recreate just this environment's app container.
-    docker compose up -d --remove-orphans --no-recreate postgres caddy
+    docker compose up -d --remove-orphans --no-recreate postgres
     docker compose up -d --force-recreate --no-deps $APP_SERVICE
 
     # Wait for the container's healthcheck-less app to answer locally.
@@ -198,9 +200,6 @@ ssh $SSH_OPTS "$DEPLOY_USER_HOST" bash <<ENDSSH
         [[ \$i -eq 30 ]] && echo "WARNING: $APP_SERVICE did not respond within 60s"
         sleep 2
     done
-
-    # Reload Caddy in case the Caddyfile changed (graceful, no downtime).
-    docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true
 
     docker compose ps
 ENDSSH
@@ -220,7 +219,7 @@ for i in $(seq 1 30); do
     fi
     if [[ $i -eq 30 ]]; then
         warn "Could not reach https://$HEALTH_HOST within 60s (TLS may still be provisioning on first deploy)."
-        warn "Check logs: ssh $SSH_OPTS $DEPLOY_USER_HOST 'cd $DEPLOY_PATH/infra && docker compose logs -f $APP_SERVICE caddy'"
+        warn "Check logs: ssh $SSH_OPTS $DEPLOY_USER_HOST 'cd $DEPLOY_PATH/infra && docker compose logs -f $APP_SERVICE'"
     fi
     sleep 2
 done
