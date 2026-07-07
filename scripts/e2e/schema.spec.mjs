@@ -69,13 +69,12 @@ await close();
 // --- madison can log in; her avatar renders cyan ---
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-await page.goto(base + "/");
-await page.waitForURL("**/login");
+await page.goto(base + "/login");
 await page.fill('input[name="username"]', "madison");
 await page.fill('input[name="password"]', "changeme");
 await page.click('button[type="submit"]');
-await page.waitForURL(base + "/");
-ok("madison login succeeds", page.url() === base + "/");
+await page.waitForURL(base + "/dashboard");
+ok("madison login succeeds", page.url() === base + "/dashboard");
 const avatar = page.locator('header a[href="/settings"]');
 ok("madison avatar initial is M", (await avatar.textContent())?.trim() === "M");
 const avatarBg = await avatar.evaluate((el) => getComputedStyle(el).backgroundColor);

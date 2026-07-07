@@ -9,12 +9,11 @@ const ok = (name, cond) => {
 };
 
 // login
-await page.goto(base + "/");
-await page.waitForURL("**/login");
+await page.goto(base + "/login");
 await page.fill('input[name="username"]', "cullen");
 await page.fill('input[name="password"]', "changeme");
 await page.click('button[type="submit"]');
-await page.waitForURL(base + "/");
+await page.waitForURL(base + "/dashboard");
 
 // G9 — light theme forced: body background is the light page surface (#e7e5e4),
 // not a dark inversion.
@@ -54,7 +53,7 @@ const doneMin = await page.evaluate(() => {
     : 0;
 });
 ok(`G8 upkeep Done button height ≥ 44px (${doneMin})`, Math.round(doneMin) >= 44);
-await page.goto(base + "/");
+await page.goto(base + "/dashboard");
 
 // G5 — bottom tab bar: 5 tabs with correct hrefs, active state on current tab.
 const hrefs = await page.$$eval('[data-testid="bottom-nav"] a', (els) =>
@@ -63,14 +62,14 @@ const hrefs = await page.$$eval('[data-testid="bottom-nav"] a', (els) =>
 ok(
   "G5 five tabs with correct hrefs",
   JSON.stringify(hrefs) ===
-    JSON.stringify(["/", "/maintenance", "/plan", "/groceries", "/more"]),
+    JSON.stringify(["/dashboard", "/maintenance", "/plan", "/groceries", "/more"]),
 );
 const activeHref = await page.$eval(
   '[data-testid="bottom-nav"] a[aria-current="page"]',
   (e) =>
   new URL(e.href).pathname,
 );
-ok("G5 active tab is Home on /", activeHref === "/");
+ok("G5 active tab is Home on /", activeHref === "/dashboard");
 
 // G3 — avatar shows logged-in user's initial and links to /settings.
 const avatar = page.locator('header a[href="/settings"]');
@@ -88,7 +87,7 @@ await page.waitForURL(base + "/more");
 ok("G2 back chevron navigates back", page.url() === base + "/more");
 
 // G2 (negative) — no back chevron on a primary tab.
-await page.goto(base + "/");
+await page.goto(base + "/dashboard");
 ok(
   "G2 no back chevron on Home",
   (await page.getByRole("button", { name: "Back" }).count()) === 0,

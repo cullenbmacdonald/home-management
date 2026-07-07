@@ -44,7 +44,7 @@ export async function saveHaConfig(
 
   revalidatePath("/settings");
   revalidatePath("/home");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   return "Saved";
 }
 

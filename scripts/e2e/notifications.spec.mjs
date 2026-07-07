@@ -29,12 +29,11 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
 // login
-await page.goto(base + "/");
-await page.waitForURL("**/login");
+await page.goto(base + "/login");
 await page.fill('input[name="username"]', "cullen");
 await page.fill('input[name="password"]', "changeme");
 await page.click('button[type="submit"]');
-await page.waitForURL(base + "/");
+await page.waitForURL(base + "/dashboard");
 
 // ---------------------------------------------------------------------------
 // N1: due sweep generates overdue + due-soon notifications, idempotent per day
@@ -61,7 +60,7 @@ ok("N1 overdue severity is 'overdue'", (await severityOf(overdueText)) === "over
 ok("N1 due-soon severity is 'due-soon'", (await severityOf(dueSoonText)) === "due-soon");
 
 // Same-day re-load: guard skips the sweep, no duplicates.
-await page.goto(base + "/");
+await page.goto(base + "/dashboard");
 await page.goto(base + "/notifications");
 ok("N1 same-day reload does not duplicate overdue", (await countText(overdueText)) === 1);
 ok("N1 same-day reload does not duplicate due-soon", (await countText(dueSoonText)) === 1);

@@ -44,3 +44,6 @@ data/
 
 # Claude Code transient agent worktrees
 .claude/worktrees/
+
+# Marketing screenshot source (published copies live in public/marketing)
+marketing-screenshots/

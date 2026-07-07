@@ -5,13 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { DesktopActions } from "@/components/desktop-actions";
 
 /** The five primary tabs never show a back chevron. */
-const PRIMARY_TABS = ["/", "/maintenance", "/plan", "/groceries", "/more"];
+const PRIMARY_TABS = ["/dashboard", "/maintenance", "/plan", "/groceries", "/more"];
 
 type Chrome = { title: string; subtitle?: string };
 
 /** Exact-path titles; dynamic/sub-paths fall back to the prefix table below. */
 const EXACT: Record<string, Chrome> = {
-  "/": { title: "Home" },
+  "/dashboard": { title: "Home" },
   "/maintenance": { title: "Upkeep", subtitle: "Recurring home care" },
   "/maintenance/new": { title: "New item", subtitle: "Upkeep" },
   "/plan": { title: "Plan", subtitle: "Calendar & meals" },

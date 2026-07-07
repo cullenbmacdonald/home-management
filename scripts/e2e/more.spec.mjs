@@ -15,12 +15,11 @@ const ymd = (offsetDays) => {
 };
 
 // login
-await page.goto(base + "/");
-await page.waitForURL("**/login");
+await page.goto(base + "/login");
 await page.fill('input[name="username"]', "cullen");
 await page.fill('input[name="password"]', "changeme");
 await page.click('button[type="submit"]');
-await page.waitForURL(base + "/");
+await page.waitForURL(base + "/dashboard");
 
 // Collapsible add forms live in a <details>; its open state is uncontrolled DOM
 // state that survives server-action re-renders, so force it open rather than

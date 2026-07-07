@@ -6,7 +6,7 @@ import * as tasksLib from "@/lib/tasks";
 
 function refresh() {
   revalidatePath("/tasks");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 export async function createTask(formData: FormData) {

@@ -28,7 +28,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
 await login(page, "cullen", "changeme");
-await page.waitForURL(base + "/");
+await page.waitForURL(base + "/dashboard");
 
 // ---------------------------------------------------------------------------
 // H1: unconfigured -> setup prompt on /home and dashboard
@@ -38,7 +38,7 @@ ok(
   "H1 /home shows setup prompt when unconfigured",
   (await page.getByText("Connect Home Assistant").count()) > 0,
 );
-await page.goto(base + "/");
+await page.goto(base + "/dashboard");
 ok(
   "H1 dashboard shows setup prompt when unconfigured",
   (await page.getByText("Connect Home Assistant").count()) > 0,
@@ -90,7 +90,7 @@ const settingsHtml = await page.content();
 ok("H2 token not rendered in settings HTML", !settingsHtml.includes("test-token"));
 await page.goto(base + "/home");
 ok("H2 token not rendered in /home HTML", !(await page.content()).includes("test-token"));
-await page.goto(base + "/");
+await page.goto(base + "/dashboard");
 ok("H2 token not rendered in dashboard HTML", !(await page.content()).includes("test-token"));
 
 // ---------------------------------------------------------------------------
@@ -103,7 +103,7 @@ ok(
   "H3 /home temp tile shows mock value",
   (await homeTemps.first().textContent())?.includes("71°"),
 );
-await page.goto(base + "/");
+await page.goto(base + "/dashboard");
 const dashTemps = page.locator("[data-temp-tile]");
 ok("H3 dashboard renders temp tiles", (await dashTemps.count()) === 2);
 ok(
@@ -203,8 +203,8 @@ ok(
 
 // New password succeeds.
 await login(page, "cullen", "newpass123");
-await page.waitForURL(base + "/");
-ok("H7 new password accepted", page.url() === base + "/");
+await page.waitForURL(base + "/dashboard");
+ok("H7 new password accepted", page.url() === base + "/dashboard");
 
 // Restore to 'changeme' via UI so later specs keep working.
 await page.goto(base + "/settings");

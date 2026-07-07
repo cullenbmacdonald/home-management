@@ -15,10 +15,10 @@ await page.screenshot({ path: `${outDir}/login.png` });
 await page.fill('input[name="username"]', "cullen");
 await page.fill('input[name="password"]', "changeme");
 await page.click('button[type="submit"]');
-await page.waitForURL(base + "/");
+await page.waitForURL(base + "/dashboard");
 
 const screens = [
-  ["/", "dashboard"],
+  ["/dashboard", "dashboard"],
   ["/maintenance", "upkeep"],
   ["/plan", "plan-week"],
   ["/plan?tab=meals", "plan-meals"],
