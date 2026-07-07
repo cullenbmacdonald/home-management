@@ -196,7 +196,7 @@ ssh $SSH_OPTS "$DEPLOY_USER_HOST" bash <<ENDSSH
     # a non-2xx status as failure (wget -O /dev/null would).
     echo "Waiting for $APP_SERVICE to respond..."
     for i in \$(seq 1 30); do
-        if docker compose exec -T $APP_SERVICE wget -q -S -O /dev/null http://localhost:3000/ 2>&1 | grep -q "HTTP/"; then
+        if docker compose exec -T $APP_SERVICE wget -S -O /dev/null http://localhost:3000/ 2>&1 | grep -q "HTTP/"; then
             echo "$APP_SERVICE is up after \$((i*2))s"; break
         fi
         [[ \$i -eq 30 ]] && echo "WARNING: $APP_SERVICE did not respond within 60s"
