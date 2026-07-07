@@ -85,11 +85,11 @@ const eventSeed: {
 }[] = [
   { offset: 0, time: "08:00", title: "Trash & recycling out", type: "chore", who: "Cullen" },
   { offset: 0, time: "18:30", title: "Gym", type: "event", who: "" },
-  { offset: 1, time: "17:00", title: "Grocery pickup — Union Market", type: "event", who: "Steph" },
-  { offset: 1, time: "", title: "Water the plants", type: "chore", who: "Steph" },
+  { offset: 1, time: "17:00", title: "Grocery pickup — Union Market", type: "event", who: "Madison" },
+  { offset: 1, time: "", title: "Water the plants", type: "chore", who: "Madison" },
   { offset: 2, time: "11:00", title: "Super re: radiator knock", type: "event", who: "" },
   { offset: 3, time: "19:30", title: "Date night — dinner at Lot 2", type: "date", who: "" },
-  { offset: 4, time: "", title: "Laundry", type: "chore", who: "Steph" },
+  { offset: 4, time: "", title: "Laundry", type: "chore", who: "Madison" },
   { offset: 4, time: "20:00", title: "Dinner w/ Sarah & Mike", type: "date", who: "" },
   { offset: 5, time: "10:00", title: "Farmers market — Grand Army Plaza", type: "event", who: "" },
   { offset: 5, time: "14:00", title: "Hang bedroom shelves", type: "chore", who: "Cullen" },
@@ -108,7 +108,7 @@ const notifSeed: {
   { severity: "due-soon", text: "Mini-split filters due in 2 days", read: false },
   { severity: "info", text: "Grocery pickup tomorrow at 5:00 PM", read: false },
   { severity: "success", text: "Cullen completed “Flush drain traps”", read: true },
-  { severity: "success", text: "Steph moved “Walnut dining chairs” to Ordered", read: true },
+  { severity: "success", text: "Madison moved “Walnut dining chairs” to Ordered", read: true },
 ];
 
 async function main() {

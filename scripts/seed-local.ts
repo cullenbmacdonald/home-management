@@ -1,5 +1,5 @@
 // Quick local demo: stand up a fully usable app from an EMPTY database.
-//   1. apply migrations + first-run seed (household "Our Home": cullen/steph)
+//   1. apply migrations + first-run seed (household "Our Home": cullen/madison)
 //   2. fill that household with realistic demo content (groceries/meals/etc.)
 //   3. create a SECOND household ("The Riveras": maya/diego) with its own data,
 //      so you can log in as either and see the isolation between them.
@@ -24,7 +24,7 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 async function main() {
-  // 1. migrations + first-run seed (household 1 with cullen/steph + defaults)
+  // 1. migrations + first-run seed (household 1 with cullen/madison + defaults)
   await runMigrations();
   console.log("✓ migrations + first-run seed applied");
 

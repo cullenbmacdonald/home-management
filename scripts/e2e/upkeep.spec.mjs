@@ -16,8 +16,8 @@ const isoDaysAgo = (n) => {
 };
 
 const cullen = (await get("SELECT id FROM users WHERE username='cullen'")).id;
-const steph =
-  (await get("SELECT id FROM users WHERE username IN ('steph','partner') LIMIT 1"))?.id ??
+const madison =
+  (await get("SELECT id FROM users WHERE username IN ('madison','partner') LIMIT 1"))?.id ??
   cullen;
 const kitchen = (await get("SELECT id FROM rooms WHERE name='Kitchen'")).id;
 
@@ -40,7 +40,7 @@ const histId = (await insItem("E2E History item", null, 30, null, todayIso)).id;
 const nowMs = Date.now();
 await run(
   "INSERT INTO maintenance_logs (item_id, completed_at, completed_by_id) VALUES ($1,$2,$3)",
-  [histId, new Date(nowMs - 2 * 86400 * 1000), steph],
+  [histId, new Date(nowMs - 2 * 86400 * 1000), madison],
 );
 await run(
   "INSERT INTO maintenance_logs (item_id, completed_at, completed_by_id) VALUES ($1,$2,$3)",
@@ -124,10 +124,10 @@ await page.waitForTimeout(200);
 await rowButton("E2E History item").click();
 await page.waitForTimeout(200);
 const historyText = await dialog.textContent();
-// newest = Cullen (today), older = Steph (2 days ago)
-ok("U7 history shows both people", historyText.includes("Cullen") && (historyText.includes("Steph") || historyText.includes("partner")));
+// newest = Cullen (today), older = Madison (2 days ago)
+ok("U7 history shows both people", historyText.includes("Cullen") && (historyText.includes("Madison") || historyText.includes("partner")));
 const idxNew = historyText.indexOf("Cullen");
-const idxOld = Math.max(historyText.indexOf("Steph"), historyText.indexOf("partner"));
+const idxOld = Math.max(historyText.indexOf("Madison"), historyText.indexOf("partner"));
 ok("U7 history newest-first", idxNew < idxOld);
 await page.locator('[aria-label="Close"]').click();
 await page.waitForTimeout(200);

@@ -95,7 +95,7 @@ drizzle/         generated SQL migrations (checked in)
 ## Auth model
 
 Accounts are per-household. The first user is seeded (`USER1_*` / `USER2_*` env
-vars, defaults `cullen`/`steph` + `changeme`, only read when the users table is
+vars, defaults `cullen`/`madison` + `changeme`, only read when the users table is
 empty); further users self-serve via `/signup` (create a new household, or join
 one with an invite code). **Usernames are globally unique** (case-insensitive
 unique index on `lower(username)`) so a username identifies exactly one user —

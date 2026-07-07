@@ -42,12 +42,12 @@ ok(
   stapleRows.every((s) => VALID_CATS.includes(s.category)),
 );
 
-// --- users: accent colors + steph rename ---
+// --- users: accent colors + madison rename ---
 const userRows = await all("SELECT username, accent_color FROM users");
 const byName = Object.fromEntries(userRows.map((u) => [u.username, u.accent_color]));
 ok("cullen accent is #059669", byName.cullen === "#059669");
-ok("steph exists (not partner)", "steph" in byName && !("partner" in byName));
-ok("steph accent is #0e7490", byName.steph === "#0e7490");
+ok("madison exists (not partner)", "madison" in byName && !("partner" in byName));
+ok("madison accent is #0e7490", byName.madison === "#0e7490");
 
 // --- demo seed populates the four tables with valid data ---
 const seed = spawnSync("npm", ["run", "seed:demo"], { cwd: repoRoot, encoding: "utf8" });
@@ -66,19 +66,19 @@ ok(
 
 await close();
 
-// --- steph can log in; her avatar renders cyan ---
+// --- madison can log in; her avatar renders cyan ---
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 await page.goto(base + "/");
 await page.waitForURL("**/login");
-await page.fill('input[name="username"]', "steph");
+await page.fill('input[name="username"]', "madison");
 await page.fill('input[name="password"]', "changeme");
 await page.click('button[type="submit"]');
 await page.waitForURL(base + "/");
-ok("steph login succeeds", page.url() === base + "/");
+ok("madison login succeeds", page.url() === base + "/");
 const avatar = page.locator('header a[href="/settings"]');
-ok("steph avatar initial is S", (await avatar.textContent())?.trim() === "S");
+ok("madison avatar initial is M", (await avatar.textContent())?.trim() === "M");
 const avatarBg = await avatar.evaluate((el) => getComputedStyle(el).backgroundColor);
-ok("steph avatar bg is cyan #0e7490", avatarBg === "rgb(14, 116, 144)");
+ok("madison avatar bg is cyan #0e7490", avatarBg === "rgb(14, 116, 144)");
 
 await browser.close();

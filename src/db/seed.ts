@@ -10,7 +10,7 @@ import {
 import type { GroceryCategory } from "./schema";
 
 const CULLEN_ACCENT = "#059669";
-const STEPH_ACCENT = "#0e7490";
+const MADISON_ACCENT = "#0e7490";
 
 const DEFAULT_ROOMS = [
   "Living Room",
@@ -87,10 +87,10 @@ export async function seedIfEmpty(db: typeof DB) {
       role: "owner" as const,
     },
     {
-      username: process.env.USER2_USERNAME ?? "steph",
-      displayName: process.env.USER2_NAME ?? "Steph",
+      username: process.env.USER2_USERNAME ?? "madison",
+      displayName: process.env.USER2_NAME ?? "Madison",
       password: process.env.USER2_PASSWORD ?? "changeme",
-      accentColor: STEPH_ACCENT,
+      accentColor: MADISON_ACCENT,
       role: "owner" as const,
     },
   ];
