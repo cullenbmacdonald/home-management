@@ -192,8 +192,9 @@ ssh $SSH_OPTS "$DEPLOY_USER_HOST" bash <<ENDSSH
     docker compose up -d --force-recreate --no-deps $APP_SERVICE
 
     # Wait for the app to answer locally. Any HTTP response line means the
-    # server is up — the app redirects / to /login (307), so we must NOT treat
-    # a non-2xx status as failure (wget -O /dev/null would).
+    # server is up. / serves the public marketing page (200); protected routes
+    # redirect to /login (307). Either way we only require an HTTP/ status line,
+    # never a specific 2xx (wget -O /dev/null would treat non-2xx as failure).
     echo "Waiting for $APP_SERVICE to respond..."
     for i in \$(seq 1 30); do
         if docker compose exec -T $APP_SERVICE wget -S -O /dev/null http://localhost:3000/ 2>&1 | grep -q "HTTP/"; then

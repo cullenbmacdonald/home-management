@@ -22,7 +22,7 @@ async function signupHousehold(page, { user, house, pw }) {
   await page.fill('input[name="username"]', user);
   await page.fill('input[name="password"]', pw);
   await page.click('button[type="submit"]');
-  await page.waitForURL(base + "/");
+  await page.waitForURL(base + "/dashboard");
 }
 
 const browser = await chromium.launch();
@@ -31,7 +31,7 @@ const browser = await chromium.launch();
 const ctxA = await browser.newContext({ viewport: { width: 390, height: 844 } });
 const pageA = await ctxA.newPage();
 await signupHousehold(pageA, A);
-ok("A signup lands on dashboard", pageA.url() === base + "/");
+ok("A signup lands on dashboard", pageA.url() === base + "/dashboard");
 
 const SECRET = `SECRET_${rand}`;
 await pageA.goto(base + "/groceries");
@@ -88,7 +88,7 @@ await pageC.fill('input[name="displayName"]', `guest_${rand}`);
 await pageC.fill('input[name="username"]', `guest_${rand}`);
 await pageC.fill('input[name="password"]', "secret123");
 await pageC.click('button[type="submit"]');
-await pageC.waitForURL(base + "/");
+await pageC.waitForURL(base + "/dashboard");
 
 const cUser = await get("SELECT household_id, role FROM users WHERE username=$1", [`guest_${rand}`]);
 ok("invited user joins A's household", cUser?.household_id === aUser.household_id);

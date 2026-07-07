@@ -57,5 +57,5 @@ function safeNextPath(value: FormDataEntryValue | null): string {
   if (raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\")) {
     return raw;
   }
-  return "/";
+  return "/dashboard";
 }

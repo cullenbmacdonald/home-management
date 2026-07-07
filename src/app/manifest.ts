@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Homebase",
     short_name: "Homebase",
     description: "Home management for our apartment",
-    start_url: "/",
+    start_url: "/dashboard",
     display: "standalone",
     background_color: "#faf9f8",
     theme_color: "#059669",

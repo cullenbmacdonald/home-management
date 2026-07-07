@@ -11,7 +11,7 @@ import { requireHousehold } from "@/lib/auth";
 function refresh() {
   revalidatePath("/groceries");
   revalidatePath("/groceries/staples");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 export async function addGroceryItem(

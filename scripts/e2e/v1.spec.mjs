@@ -9,12 +9,11 @@ const ok = (name, cond) => {
 };
 
 // login
-await page.goto(base + "/");
-await page.waitForURL("**/login");
+await page.goto(base + "/login");
 await page.fill('input[name="username"]', "cullen");
 await page.fill('input[name="password"]', "changeme");
 await page.click('button[type="submit"]');
-await page.waitForURL(base + "/");
+await page.waitForURL(base + "/dashboard");
 ok("login redirects to dashboard", true);
 ok("greeting shows Cullen", (await page.textContent("h1")).includes("Cullen"));
 

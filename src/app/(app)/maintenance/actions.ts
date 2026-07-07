@@ -32,7 +32,7 @@ export async function markDone(itemId: number, notes?: string) {
     `${user.displayName} completed “${item.name}”`,
   );
   revalidatePath("/maintenance");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 export async function createMaintenanceItem(formData: FormData) {

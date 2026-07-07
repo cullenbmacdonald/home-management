@@ -101,5 +101,5 @@ export async function signup(
   }
 
   await createSession(userId);
-  redirect("/");
+  redirect("/dashboard");
 }

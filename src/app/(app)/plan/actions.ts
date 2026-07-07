@@ -11,21 +11,21 @@ export async function createEvent(data: NewEvent) {
   const ctx = await requireHousehold();
   await mealsLib.addEvent(ctx, data);
   revalidatePath("/plan");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 export async function updateEvent(data: EditEvent) {
   const ctx = await requireHousehold();
   await mealsLib.updateEvent(ctx, data);
   revalidatePath("/plan");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 export async function deleteEvent(id: number) {
   const ctx = await requireHousehold();
   await mealsLib.deleteEvent(ctx, id);
   revalidatePath("/plan");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 export async function createMeal(data: NewMeal) {

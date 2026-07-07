@@ -20,7 +20,7 @@ export type NavItem = { href: string; label: string; icon: ReactNode };
 /** The five destinations in the phone/iPad bottom bar. */
 export const PRIMARY_NAV: NavItem[] = [
   {
-    href: "/",
+    href: "/dashboard",
     label: "Home",
     icon: icon(
       <>

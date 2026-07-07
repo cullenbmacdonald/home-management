@@ -9,5 +9,5 @@ export async function markAllNotificationsRead() {
   await markAllRead(householdId);
   revalidatePath("/notifications");
   revalidatePath("/more");
-  revalidatePath("/", "layout");
+  revalidatePath("/dashboard", "layout");
 }

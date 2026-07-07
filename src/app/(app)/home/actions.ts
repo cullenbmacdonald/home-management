@@ -6,7 +6,7 @@ import { callService } from "@/lib/ha";
 
 function refresh() {
   revalidatePath("/home");
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 /** Adjust a climate setpoint by delta degrees from its current value. */
