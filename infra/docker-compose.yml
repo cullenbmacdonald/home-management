@@ -1,0 +1,102 @@
+# Homebase — staging + production on a single box.
+#
+# One compose project runs the app tier:
+#   - postgres              shared PG instance, holds two databases (prod + staging)
+#   - homebase-app-prod     Next.js app for homebase.casa
+#   - homebase-app-staging  Next.js app for staging.homebase.casa
+#
+# The edge (ports 80/443 + TLS) is owned by the separate "platform" repo, which
+# runs a shared Caddy and proxies to these app containers by name over the
+# external `edge` Docker network. Postgres stays on the private `homebase`
+# network only and is never reachable from the edge.
+#
+# The two app services are pinned to independent image tags
+# (PROD_IMAGE_TAG / STAGING_IMAGE_TAG), both written into .env by deploy.sh.
+# Images are built on the box (docker build -t homebase:<commit>) so no
+# registry is needed — both containers share the same Docker daemon.
+
+name: homebase
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-homebase}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-homebase}
+    volumes:
+      - homebase-pg:/var/lib/postgresql/data
+      # Runs once on first init: creates the staging database alongside prod.
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - homebase
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-homebase} -d ${POSTGRES_DB:-homebase}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  homebase-app-prod:
+    image: homebase:${PROD_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-homebase}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/homebase
+      MCP_BASE_URL: https://${DOMAIN:?DOMAIN is required}
+      CRON_SECRET: ${CRON_SECRET:-}
+      # First-boot account setup (only used when the users table is empty)
+      USER1_USERNAME: ${USER1_USERNAME:-cullen}
+      USER1_NAME: ${USER1_NAME:-Cullen}
+      USER1_PASSWORD: ${USER1_PASSWORD:?USER1_PASSWORD is required}
+      USER2_USERNAME: ${USER2_USERNAME:-steph}
+      USER2_NAME: ${USER2_NAME:-Steph}
+      USER2_PASSWORD: ${USER2_PASSWORD:?USER2_PASSWORD is required}
+    volumes:
+      - homebase-data-prod:/data
+    networks:
+      - homebase
+      - edge
+    expose:
+      - "3000"
+
+  homebase-app-staging:
+    image: homebase:${STAGING_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-homebase}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/homebase_staging
+      MCP_BASE_URL: https://${STAGING_DOMAIN:?STAGING_DOMAIN is required}
+      CRON_SECRET: ${CRON_SECRET:-}
+      USER1_USERNAME: ${USER1_USERNAME:-cullen}
+      USER1_NAME: ${USER1_NAME:-Cullen}
+      USER1_PASSWORD: ${USER1_PASSWORD:?USER1_PASSWORD is required}
+      USER2_USERNAME: ${USER2_USERNAME:-steph}
+      USER2_NAME: ${USER2_NAME:-Steph}
+      USER2_PASSWORD: ${USER2_PASSWORD:?USER2_PASSWORD is required}
+    volumes:
+      - homebase-data-staging:/data
+    networks:
+      - homebase
+      - edge
+    expose:
+      - "3000"
+
+volumes:
+  homebase-pg:
+    name: homebase-pg
+  homebase-data-prod:
+    name: homebase-data-prod
+  homebase-data-staging:
+    name: homebase-data-staging
+
+networks:
+  homebase:
+    name: homebase
+  edge:
+    external: true
+    name: edge
