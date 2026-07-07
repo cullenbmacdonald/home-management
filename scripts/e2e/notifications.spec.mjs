@@ -14,16 +14,34 @@ const ymd = (offsetDays) => {
 };
 const today = new Date().toISOString().slice(0, 10);
 
+// Seeded household ("Our Home") — scope every insert/count to it so rows other
+// specs create for other households don't leak in.
+const hh = (await get("SELECT household_id FROM users WHERE username='cullen'"))
+  .household_id;
+
 // Force the daily due-sweep to run on the next page load.
 const armSweep = () =>
   run(
-    "INSERT INTO settings(key,value) VALUES('lastDueSweep','2000-01-01') " +
-      "ON CONFLICT (key) DO UPDATE SET value='2000-01-01'",
+    "INSERT INTO settings(household_id,key,value) VALUES($1,'lastDueSweep','2000-01-01') " +
+      "ON CONFLICT (household_id,key) DO UPDATE SET value='2000-01-01'",
+    [hh],
   );
 const countText = async (text) =>
-  Number((await get("SELECT COUNT(*) c FROM notifications WHERE text = $1", [text])).c);
+  Number(
+    (
+      await get(
+        "SELECT COUNT(*) c FROM notifications WHERE household_id = $1 AND text = $2",
+        [hh, text],
+      )
+    ).c,
+  );
 const severityOf = async (text) =>
-  (await get("SELECT severity FROM notifications WHERE text=$1", [text]))?.severity;
+  (
+    await get(
+      "SELECT severity FROM notifications WHERE household_id = $1 AND text = $2",
+      [hh, text],
+    )
+  )?.severity;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -40,13 +58,13 @@ await page.waitForURL(base + "/dashboard");
 // ---------------------------------------------------------------------------
 // Overdue by ~4 days: interval 1, started 5 days ago (no logs).
 await run(
-  "INSERT INTO maintenance_items(name,interval_days,start_date,active) VALUES($1,$2,$3,true)",
-  ["N1 overdue item", 1, ymd(-5)],
+  "INSERT INTO maintenance_items(household_id,name,interval_days,start_date,active) VALUES($1,$2,$3,$4,true)",
+  [hh, "N1 overdue item", 1, ymd(-5)],
 );
 // Due tomorrow: interval 1, started today -> next due tomorrow.
 await run(
-  "INSERT INTO maintenance_items(name,interval_days,start_date,active) VALUES($1,$2,$3,true)",
-  ["N1 duesoon item", 1, today],
+  "INSERT INTO maintenance_items(household_id,name,interval_days,start_date,active) VALUES($1,$2,$3,$4,true)",
+  [hh, "N1 duesoon item", 1, today],
 );
 
 const overdueText = "N1 overdue item is 4 days overdue";
@@ -76,8 +94,8 @@ ok("N1 forced re-sweep still no duplicate due-soon", (await countText(dueSoonTex
 // ---------------------------------------------------------------------------
 // markDone -> "Cullen completed "..."
 await run(
-  "INSERT INTO maintenance_items(name,interval_days,start_date,active) VALUES($1,$2,$3,true)",
-  ["N2 done item", 30, today],
+  "INSERT INTO maintenance_items(household_id,name,interval_days,start_date,active) VALUES($1,$2,$3,$4,true)",
+  [hh, "N2 done item", 30, today],
 );
 await page.goto(base + "/maintenance");
 await page.locator("button", { hasText: "N2 done item" }).first().click();
@@ -91,7 +109,8 @@ ok(
 
 // advanceWishlistItem -> "Cullen moved "..." to Decided"
 await run(
-  "INSERT INTO wishlist_items(name,status) VALUES('N2 wish item','considering')",
+  "INSERT INTO wishlist_items(household_id,name,status) VALUES($1,'N2 wish item','considering')",
+  [hh],
 );
 await page.goto(base + "/wishlist");
 await page
@@ -129,7 +148,8 @@ const unreadWeight = await unreadRow
 ok("N3 unread text is bold (600)", unreadWeight === "600");
 // A read row exists (N2 mark-done etc. still unread; seed a read one to compare)
 await run(
-  "INSERT INTO notifications(severity,text,read_at,created_at) VALUES('info','N3 read row',now(),now())",
+  "INSERT INTO notifications(household_id,severity,text,read_at,created_at) VALUES($1,'info','N3 read row',now(),now())",
+  [hh],
 );
 await page.goto(base + "/notifications");
 const readRow = page.locator('[data-notification][data-read="true"]').first();
@@ -149,7 +169,12 @@ ok(
 const badge = page.locator("header [data-unread-badge]");
 ok("N4 badge visible before mark-all-read", (await badge.count()) === 1);
 const unreadBefore = Number(
-  (await get("SELECT COUNT(*) c FROM notifications WHERE read_at IS NULL")).c,
+  (
+    await get(
+      "SELECT COUNT(*) c FROM notifications WHERE household_id = $1 AND read_at IS NULL",
+      [hh],
+    )
+  ).c,
 );
 ok("N4 there are unread notifications before", unreadBefore > 0);
 
@@ -157,7 +182,14 @@ await page.getByRole("button", { name: "Mark all as read" }).click();
 await page.waitForTimeout(700);
 ok(
   "N4 all notifications marked read",
-  Number((await get("SELECT COUNT(*) c FROM notifications WHERE read_at IS NULL")).c) === 0,
+  Number(
+    (
+      await get(
+        "SELECT COUNT(*) c FROM notifications WHERE household_id = $1 AND read_at IS NULL",
+        [hh],
+      )
+    ).c,
+  ) === 0,
 );
 await page.goto(base + "/notifications");
 ok("N4 badge gone after mark-all-read", (await page.locator("header [data-unread-badge]").count()) === 0);
@@ -177,8 +209,8 @@ ok(
 // ---------------------------------------------------------------------------
 for (let i = 0; i < 12; i++) {
   await run(
-    "INSERT INTO notifications(severity,text,created_at) VALUES('info',$1,now())",
-    [`9+ cap notif ${i}`],
+    "INSERT INTO notifications(household_id,severity,text,created_at) VALUES($1,'info',$2,now())",
+    [hh, `9+ cap notif ${i}`],
   );
 }
 await page.goto(base + "/notifications");

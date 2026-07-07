@@ -20,11 +20,14 @@ const madison =
   (await get("SELECT id FROM users WHERE username IN ('madison','partner') LIMIT 1"))?.id ??
   cullen;
 const kitchen = (await get("SELECT id FROM rooms WHERE name='Kitchen'")).id;
+// Seeded household ("Our Home") — scope every insert to it.
+const hh = (await get("SELECT household_id FROM users WHERE username='cullen'"))
+  .household_id;
 
 const insItem = (name, notes, intervalDays, roomId, startDate) =>
   get(
-    "INSERT INTO maintenance_items (name, notes, interval_days, room_id, start_date, active) VALUES ($1,$2,$3,$4,$5,true) RETURNING id",
-    [name, notes, intervalDays, roomId, startDate],
+    "INSERT INTO maintenance_items (household_id, name, notes, interval_days, room_id, start_date, active) VALUES ($1,$2,$3,$4,$5,$6,true) RETURNING id",
+    [hh, name, notes, intervalDays, roomId, startDate],
   );
 const todayIso = today.toISOString().slice(0, 10);
 // overdue: nextDue = startDate + interval well in the past
@@ -39,12 +42,12 @@ await insItem("E2E Room item", null, 42, kitchen, todayIso);
 const histId = (await insItem("E2E History item", null, 30, null, todayIso)).id;
 const nowMs = Date.now();
 await run(
-  "INSERT INTO maintenance_logs (item_id, completed_at, completed_by_id) VALUES ($1,$2,$3)",
-  [histId, new Date(nowMs - 2 * 86400 * 1000), madison],
+  "INSERT INTO maintenance_logs (household_id, item_id, completed_at, completed_by_id) VALUES ($1,$2,$3,$4)",
+  [hh, histId, new Date(nowMs - 2 * 86400 * 1000), madison],
 );
 await run(
-  "INSERT INTO maintenance_logs (item_id, completed_at, completed_by_id) VALUES ($1,$2,$3)",
-  [histId, new Date(nowMs), cullen],
+  "INSERT INTO maintenance_logs (household_id, item_id, completed_at, completed_by_id) VALUES ($1,$2,$3,$4)",
+  [hh, histId, new Date(nowMs), cullen],
 );
 
 const browser = await chromium.launch();

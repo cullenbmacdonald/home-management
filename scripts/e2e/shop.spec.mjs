@@ -8,6 +8,11 @@ const ok = (name, cond) => {
   if (!cond) process.exitCode = 1;
 };
 
+// Seeded household ("Our Home") — scope every insert/count to it so rows other
+// specs create for other households don't skew the DB-vs-UI comparisons.
+const hh = (await get("SELECT household_id FROM users WHERE username='cullen'"))
+  .household_id;
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
@@ -76,7 +81,8 @@ ok("S2 aisle order Produce<Pantry<Household", iP < iPan && iPan < iH && iP >= 0)
 const produceLeft = Number(
   (
     await get(
-      "SELECT COUNT(*) c FROM grocery_items WHERE category='produce' AND checked=false",
+      "SELECT COUNT(*) c FROM grocery_items WHERE household_id=$1 AND category='produce' AND checked=false",
+      [hh],
     )
   ).c,
 );
@@ -116,8 +122,8 @@ ok(
 
 // --- S4: STAPLE tag + qty display (insert a staple+qty item via DB) ---
 await run(
-  "INSERT INTO grocery_items (name, category, qty, checked, is_staple) VALUES ($1,$2,$3,false,true)",
-  ["E2E StapleQty", "produce", "2 lb"],
+  "INSERT INTO grocery_items (household_id, name, category, qty, checked, is_staple) VALUES ($1,$2,$3,$4,false,true)",
+  [hh, "E2E StapleQty", "produce", "2 lb"],
 );
 await page.reload();
 await page.waitForTimeout(400);
@@ -142,7 +148,7 @@ ok(
 );
 
 // --- S5: restock staples (empty -> 10; check/delete -> re-add no dupes) ---
-await run("DELETE FROM grocery_items");
+await run("DELETE FROM grocery_items WHERE household_id = $1", [hh]);
 await page.reload();
 await page.waitForTimeout(400);
 ok(
@@ -152,11 +158,21 @@ ok(
 await page.getByRole("button", { name: /Restock staples/ }).click();
 await page.waitForTimeout(600);
 const stapleCount = Number(
-  (await get("SELECT COUNT(*) c FROM grocery_items WHERE is_staple=true")).c,
+  (
+    await get(
+      "SELECT COUNT(*) c FROM grocery_items WHERE household_id=$1 AND is_staple=true",
+      [hh],
+    )
+  ).c,
 );
 ok("S5 restock adds 10 staples", stapleCount === 10);
 const checkedAfterRestock = Number(
-  (await get("SELECT COUNT(*) c FROM grocery_items WHERE checked=true")).c,
+  (
+    await get(
+      "SELECT COUNT(*) c FROM grocery_items WHERE household_id=$1 AND checked=true",
+      [hh],
+    )
+  ).c,
 );
 ok("S5 restocked staples unchecked", checkedAfterRestock === 0);
 
@@ -170,18 +186,28 @@ await delBtns.nth(1).click();
 await page.waitForTimeout(400);
 ok(
   "S5 after check+delete count is 9",
-  Number((await get("SELECT COUNT(*) c FROM grocery_items")).c) === 9,
+  Number(
+    (await get("SELECT COUNT(*) c FROM grocery_items WHERE household_id=$1", [hh])).c,
+  ) === 9,
 );
 await page.getByRole("button", { name: /Restock staples/ }).click();
 await page.waitForTimeout(600);
-const finalCount = Number((await get("SELECT COUNT(*) c FROM grocery_items")).c);
+const finalCount = Number(
+  (await get("SELECT COUNT(*) c FROM grocery_items WHERE household_id=$1", [hh])).c,
+);
 ok("S5 re-restock no duplicates (10 total)", finalCount === 10);
 const dupes = await all(
-  "SELECT LOWER(name) name, COUNT(*) c FROM grocery_items GROUP BY LOWER(name) HAVING COUNT(*)>1",
+  "SELECT LOWER(name) name, COUNT(*) c FROM grocery_items WHERE household_id=$1 GROUP BY LOWER(name) HAVING COUNT(*)>1",
+  [hh],
 );
 ok("S5 no duplicate staple names", dupes.length === 0);
 const stillChecked = Number(
-  (await get("SELECT COUNT(*) c FROM grocery_items WHERE checked=true")).c,
+  (
+    await get(
+      "SELECT COUNT(*) c FROM grocery_items WHERE household_id=$1 AND checked=true",
+      [hh],
+    )
+  ).c,
 );
 ok("S5 previously checked staple now unchecked", stillChecked === 0);
 
