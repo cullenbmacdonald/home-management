@@ -191,11 +191,13 @@ ssh $SSH_OPTS "$DEPLOY_USER_HOST" bash <<ENDSSH
     docker compose up -d --remove-orphans --no-recreate postgres
     docker compose up -d --force-recreate --no-deps $APP_SERVICE
 
-    # Wait for the container's healthcheck-less app to answer locally.
+    # Wait for the app to answer locally. Any HTTP response line means the
+    # server is up — the app redirects / to /login (307), so we must NOT treat
+    # a non-2xx status as failure (wget -O /dev/null would).
     echo "Waiting for $APP_SERVICE to respond..."
     for i in \$(seq 1 30); do
-        if docker compose exec -T $APP_SERVICE wget -q -O /dev/null http://localhost:3000/ 2>/dev/null; then
-            echo "$APP_SERVICE is up after \${i}s"; break
+        if docker compose exec -T $APP_SERVICE wget -q -S -O /dev/null http://localhost:3000/ 2>&1 | grep -q "HTTP/"; then
+            echo "$APP_SERVICE is up after \$((i*2))s"; break
         fi
         [[ \$i -eq 30 ]] && echo "WARNING: $APP_SERVICE did not respond within 60s"
         sleep 2
