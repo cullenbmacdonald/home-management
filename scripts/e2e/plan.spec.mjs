@@ -178,10 +178,10 @@ ok(
   (await page.locator('input[aria-label="Event date"]').inputValue()) === farDay,
 );
 await page.fill('input[aria-label="Event title"]', "E2E Far Edited");
-const stephId = (await get("SELECT id FROM users WHERE display_name = 'Steph'")).id;
+const madisonId = (await get("SELECT id FROM users WHERE display_name = 'Madison'")).id;
 await page.selectOption(
   'select[aria-label="Event assignee"]',
-  String(stephId),
+  String(madisonId),
 );
 await page.getByRole("button", { name: "Save changes" }).click();
 await page.waitForTimeout(600);
@@ -193,7 +193,7 @@ const edited = await get(
 );
 ok(
   "C8 edit persisted to db",
-  edited?.title === "E2E Far Edited" && edited?.assignee_id === stephId,
+  edited?.title === "E2E Far Edited" && edited?.assignee_id === madisonId,
 );
 await page.locator('button[aria-label="Delete E2E Far Edited"]').click();
 await page.waitForTimeout(600);

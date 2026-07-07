@@ -41,7 +41,7 @@ npm run dev        # http://localhost:3000
 
 Point `DATABASE_URL` at a Postgres database. The schema is migrated and seeded
 automatically on first server boot (via Next `instrumentation`). Default logins:
-`cullen` / `changeme` and `steph` / `changeme` — override with `USER1_*` /
+`cullen` / `changeme` and `madison` / `changeme` — override with `USER1_*` /
 `USER2_*` env vars before first boot.
 
 Schema changes: edit `src/db/schema.ts`, then `npm run db:generate` to create a

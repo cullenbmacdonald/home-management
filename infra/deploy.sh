@@ -146,7 +146,7 @@ if $INIT_MODE; then
             echo ".env created at $DEPLOY_PATH/infra/.env"
             echo "First-boot login passwords (save these — shown once):"
             echo "  cullen: \$U1_PASS"
-            echo "  steph:  \$U2_PASS"
+            echo "  madison:  \$U2_PASS"
             echo "=============================================================="
         else
             echo ".env already exists, leaving it untouched."

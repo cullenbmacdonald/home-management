@@ -15,8 +15,8 @@ services:
       USER1_USERNAME: cullen
       USER1_NAME: Cullen
       USER1_PASSWORD: ${USER1_PASSWORD:-changeme}
-      USER2_USERNAME: steph
-      USER2_NAME: Steph
+      USER2_USERNAME: madison
+      USER2_NAME: Madison
       USER2_PASSWORD: ${USER2_PASSWORD:-changeme}
       # Public canonical origin — used to build OAuth issuer/metadata, the MCP
       # token audience, and redirect URIs. MUST be the real HTTPS origin in

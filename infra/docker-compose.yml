@@ -55,8 +55,8 @@ services:
       USER1_USERNAME: ${USER1_USERNAME:-cullen}
       USER1_NAME: ${USER1_NAME:-Cullen}
       USER1_PASSWORD: ${USER1_PASSWORD:?USER1_PASSWORD is required}
-      USER2_USERNAME: ${USER2_USERNAME:-steph}
-      USER2_NAME: ${USER2_NAME:-Steph}
+      USER2_USERNAME: ${USER2_USERNAME:-madison}
+      USER2_NAME: ${USER2_NAME:-Madison}
       USER2_PASSWORD: ${USER2_PASSWORD:?USER2_PASSWORD is required}
     volumes:
       - homebase-data-prod:/data
@@ -80,8 +80,8 @@ services:
       USER1_USERNAME: ${USER1_USERNAME:-cullen}
       USER1_NAME: ${USER1_NAME:-Cullen}
       USER1_PASSWORD: ${USER1_PASSWORD:?USER1_PASSWORD is required}
-      USER2_USERNAME: ${USER2_USERNAME:-steph}
-      USER2_NAME: ${USER2_NAME:-Steph}
+      USER2_USERNAME: ${USER2_USERNAME:-madison}
+      USER2_NAME: ${USER2_NAME:-Madison}
       USER2_PASSWORD: ${USER2_PASSWORD:?USER2_PASSWORD is required}
     volumes:
       - homebase-data-staging:/data
