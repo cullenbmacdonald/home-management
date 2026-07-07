@@ -44,6 +44,10 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      # Next.js standalone binds to $HOSTNAME; Docker sets it to the container id,
+      # which resolves to a single network interface. Force all-interfaces so the
+      # platform Caddy can always reach it regardless of network attach order.
+      HOSTNAME: "0.0.0.0"
       DATABASE_URL: postgres://${POSTGRES_USER:-homebase}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/homebase
       MCP_BASE_URL: https://${DOMAIN:?DOMAIN is required}
       CRON_SECRET: ${CRON_SECRET:-}
@@ -69,6 +73,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      HOSTNAME: "0.0.0.0"
       DATABASE_URL: postgres://${POSTGRES_USER:-homebase}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/homebase_staging
       MCP_BASE_URL: https://${STAGING_DOMAIN:?STAGING_DOMAIN is required}
       CRON_SECRET: ${CRON_SECRET:-}
