@@ -21,6 +21,10 @@ const ymd = (d) =>
   ).padStart(2, "0")}`;
 const todayKey = ymd(today);
 
+// Seeded household ("Our Home") — every row we insert must be scoped to it.
+const hh = (await get("SELECT household_id FROM users WHERE username='cullen'"))
+  .household_id;
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
@@ -47,8 +51,8 @@ ok(
 // --- Seed needs-attention items ---
 const insItem = (name, notes, intervalDays, roomId, startDate) =>
   get(
-    "INSERT INTO maintenance_items (name, notes, interval_days, room_id, start_date, active) VALUES ($1,$2,$3,$4,$5,true) RETURNING id",
-    [name, notes, intervalDays, roomId, startDate],
+    "INSERT INTO maintenance_items (household_id, name, notes, interval_days, room_id, start_date, active) VALUES ($1,$2,$3,$4,$5,$6,true) RETURNING id",
+    [hh, name, notes, intervalDays, roomId, startDate],
   );
 // overdue: due = start(45d ago) + 30d interval => 15d overdue
 const overdueId = (await insItem("E2E Dash Overdue", null, 30, null, isoDaysAgo(45))).id;
@@ -95,8 +99,8 @@ ok("D2 done creates maintenance log", logsAfter === logsBefore + 1);
 // Regression: a flat 7-day due-soon window kept interval<=7d items in
 // "needs attention" forever, since done => next due <= 7 days away.
 await run(
-  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES ($1,$2,$3,true)",
-  ["E2E Weekly Chore", 7, isoDaysAgo(8)],
+  "INSERT INTO maintenance_items (household_id, name, interval_days, start_date, active) VALUES ($1,$2,$3,$4,true)",
+  [hh, "E2E Weekly Chore", 7, isoDaysAgo(8)],
 );
 await page.reload();
 await page.waitForTimeout(400);
@@ -113,8 +117,8 @@ ok(
 // Regression: ceil(interval/2) window == 1 for daily items, so done => next
 // due 1 day away stayed inside the window. Window is now interval - 1.
 await run(
-  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES ($1,$2,$3,true)",
-  ["E2E Daily Chore", 1, isoDaysAgo(2)],
+  "INSERT INTO maintenance_items (household_id, name, interval_days, start_date, active) VALUES ($1,$2,$3,$4,true)",
+  [hh, "E2E Daily Chore", 1, isoDaysAgo(2)],
 );
 await page.reload();
 await page.waitForTimeout(400);
@@ -129,8 +133,8 @@ ok(
 
 // --- D3: today's events render (time + title) ---
 await run(
-  "INSERT INTO events (date, time, title, type) VALUES ($1,$2,$3,$4)",
-  [todayKey, "19:30", "E2E Dinner Party", "event"],
+  "INSERT INTO events (household_id, date, time, title, type) VALUES ($1,$2,$3,$4,$5)",
+  [hh, todayKey, "19:30", "E2E Dinner Party", "event"],
 );
 await page.reload();
 await page.waitForTimeout(300);
@@ -140,11 +144,11 @@ ok("D3 today event title renders", todayText.includes("E2E Dinner Party"));
 ok("D3 today event time renders", todayText.includes("7:30p"));
 
 // --- D4: grocery progress bar reflects checked/total + navigates to Shop ---
-await run("DELETE FROM grocery_items");
+await run("DELETE FROM grocery_items WHERE household_id = $1", [hh]);
 const insG = (name, category, checked) =>
   run(
-    "INSERT INTO grocery_items (name, category, checked, is_staple) VALUES ($1,$2,$3,false)",
-    [name, category, checked],
+    "INSERT INTO grocery_items (household_id, name, category, checked, is_staple) VALUES ($1,$2,$3,$4,false)",
+    [hh, name, category, checked],
   );
 await insG("E2E G1", "produce", true);
 await insG("E2E G2", "produce", false);

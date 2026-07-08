@@ -15,6 +15,10 @@ const countStaple = async (name) =>
 const stapleRow = (name) =>
   get("SELECT * FROM staples WHERE LOWER(name)=LOWER($1)", [name]);
 
+// Seeded household ("Our Home") — scope every insert to it.
+const hh = (await get("SELECT household_id FROM users WHERE username='cullen'"))
+  .household_id;
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
@@ -77,8 +81,8 @@ ok(
 // --- T6: delete removes from pool but not the shopping list ---
 // put a matching item on the live list first to prove it's untouched
 await run(
-  "INSERT INTO grocery_items (name, category, checked, is_staple) VALUES ($1,$2,false,true)",
-  ["E2E Bananas", "produce"],
+  "INSERT INTO grocery_items (household_id, name, category, checked, is_staple) VALUES ($1,$2,$3,false,true)",
+  [hh, "E2E Bananas", "produce"],
 );
 await page.locator('button[aria-label="Delete E2E Bananas"]').click();
 await page.waitForTimeout(500);
@@ -102,7 +106,8 @@ ok("T7 back link returns to groceries", page.url().endsWith("/groceries"));
 // --- T8: DB-level case-insensitive uniqueness backstops direct inserts ---
 let blocked = false;
 try {
-  await run("INSERT INTO staples (name, category) VALUES ($1,$2)", [
+  await run("INSERT INTO staples (household_id, name, category) VALUES ($1,$2,$3)", [
+    hh,
     "E2E COFFEE",
     "pantry",
   ]);

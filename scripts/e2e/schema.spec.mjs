@@ -35,7 +35,14 @@ for (const t of [
 }
 
 // --- staples: 10 rows, valid categories ---
-const stapleRows = await all("SELECT name, category FROM staples");
+// Scope to the seeded household ("Our Home"); other specs (e.g. isolation)
+// create extra households that seed their own 10 staples into this shared DB.
+const hh = (await get("SELECT household_id FROM users WHERE username='cullen'"))
+  .household_id;
+const stapleRows = await all(
+  "SELECT name, category FROM staples WHERE household_id = $1",
+  [hh],
+);
 ok("staples has 10 rows", stapleRows.length === 10);
 ok(
   "staples categories all valid",

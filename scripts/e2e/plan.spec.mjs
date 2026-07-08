@@ -36,6 +36,10 @@ if (seed.status !== 0) {
   process.exit(1);
 }
 
+// Seeded household ("Our Home") — scope every insert/count to it.
+const hh = (await get("SELECT household_id FROM users WHERE username='cullen'"))
+  .household_id;
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
@@ -64,20 +68,20 @@ const prevM = (curM + 11) % 12;
 // Deterministic fixtures on TODAY: a date-night (Cullen) and an unassigned event.
 await run("DELETE FROM events WHERE title LIKE 'E2E Cal%'");
 await run(
-  "INSERT INTO events (date, time, title, type, assignee_id) VALUES ($1,$2,$3,$4,$5)",
-  [todayKey, "19:00", "E2E Cal Dinner", "date", 1],
+  "INSERT INTO events (household_id, date, time, title, type, assignee_id) VALUES ($1,$2,$3,$4,$5,$6)",
+  [hh, todayKey, "19:00", "E2E Cal Dinner", "date", 1],
 );
 await run(
-  "INSERT INTO events (date, time, title, type, assignee_id) VALUES ($1,$2,$3,$4,NULL)",
-  [todayKey, "21:00", "E2E Cal Party", "event"],
+  "INSERT INTO events (household_id, date, time, title, type, assignee_id) VALUES ($1,$2,$3,$4,$5,NULL)",
+  [hh, todayKey, "21:00", "E2E Cal Party", "event"],
 );
 
 // Derived-upkeep fixture that lands exactly on TODAY (nextDue = start + interval).
 const weekAgo = toYMD(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7));
 await run("DELETE FROM maintenance_items WHERE name = 'E2E Filter Swap'");
 await run(
-  "INSERT INTO maintenance_items (name, interval_days, start_date, active) VALUES ($1,$2,$3,true)",
-  ["E2E Filter Swap", 7, weekAgo],
+  "INSERT INTO maintenance_items (household_id, name, interval_days, start_date, active) VALUES ($1,$2,$3,$4,true)",
+  [hh, "E2E Filter Swap", 7, weekAgo],
 );
 
 await page.goto(base + "/plan");
@@ -207,14 +211,16 @@ await run("UPDATE maintenance_items SET active = true");
 
 // ===================== MEALS TAB =====================
 // Set up a controlled grocery list for the de-dupe check.
-await run("DELETE FROM grocery_items");
+await run("DELETE FROM grocery_items WHERE household_id = $1", [hh]);
 // Avocados already present unchecked -> must be skipped (case-insensitive).
 await run(
-  "INSERT INTO grocery_items (name, category, checked) VALUES ('avocados','produce',false)",
+  "INSERT INTO grocery_items (household_id, name, category, checked) VALUES ($1,'avocados','produce',false)",
+  [hh],
 );
 // Tortillas present but CHECKED -> de-dupe is unchecked-only, so it re-adds.
 await run(
-  "INSERT INTO grocery_items (name, category, checked) VALUES ('Tortillas','pantry',true)",
+  "INSERT INTO grocery_items (household_id, name, category, checked) VALUES ($1,'Tortillas','pantry',true)",
+  [hh],
 );
 
 await page.goto(base + "/plan?tab=meals");
@@ -235,7 +241,9 @@ const tacoCard = page
 await tacoCard.getByRole("button", { name: "Add ingredients to list" }).click();
 await page.waitForTimeout(700);
 
-const groceryNames = (await all("SELECT LOWER(name) n FROM grocery_items")).map(
+const groceryNames = (
+  await all("SELECT LOWER(name) n FROM grocery_items WHERE household_id = $1", [hh])
+).map(
   (r) => r.n,
 );
 const count = (n) => groceryNames.filter((x) => x === n).length;
@@ -281,7 +289,9 @@ const newCard = page
   .filter({ hasText: "E2E Test Dinner" });
 await newCard.getByRole("button", { name: "Add ingredients to list" }).click();
 await page.waitForTimeout(700);
-const finalNames = (await all("SELECT LOWER(name) n FROM grocery_items")).map(
+const finalNames = (
+  await all("SELECT LOWER(name) n FROM grocery_items WHERE household_id = $1", [hh])
+).map(
   (r) => r.n,
 );
 ok(
