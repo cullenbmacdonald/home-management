@@ -210,9 +210,9 @@ export default async function SettingsPage() {
       <section className="space-y-2">
         <h2 className={`${HEADING} mx-1`}>Backup</h2>
         <div className={`${CARD} text-[13px] leading-[1.5] text-[#78716c]`}>
-          App data lives in your Postgres database; uploaded documents live in
-          the <code>/data</code> volume. Back up both and you have backed up the
-          entire app.
+          Soon you&apos;ll be able to download everything in your household —
+          tasks, groceries, upkeep, inventory, documents, and more — as a single
+          export, so you always have your own copy. Coming soon.
         </div>
       </section>
     </div>
