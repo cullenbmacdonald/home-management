@@ -70,6 +70,13 @@ const icons: Record<string, ReactNode> = {
       <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2Z" />
     </svg>
   ),
+  help: (
+    <svg {...iconProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .8-1 1.7" />
+      <path d="M12 17h.01" />
+    </svg>
+  ),
   settings: (
     <svg {...iconProps}>
       <circle cx="12" cy="12" r="3" />
@@ -148,6 +155,7 @@ export default async function MorePage() {
     { key: "documents", href: "/documents", label: "Documents", sub: `${documentCount} files`, iconBg: "#f5f2ef", iconFg: "#78716c" },
     { key: "contacts", href: "/vendors", label: "Contacts", sub: `${contactCount} contacts`, iconBg: "#f5f2ef", iconFg: "#78716c" },
     { key: "settings", href: "/settings", label: "Settings", sub: "—", iconBg: "#f5f2ef", iconFg: "#78716c" },
+    { key: "help", href: "/help", label: "Help", sub: "Guide & how-to", iconBg: "#ecfdf5", iconFg: "#059669" },
   ];
 
   return (

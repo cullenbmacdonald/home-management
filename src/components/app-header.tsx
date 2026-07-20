@@ -25,6 +25,7 @@ const EXACT: Record<string, Chrome> = {
   "/inventory": { title: "Inventory" },
   "/documents": { title: "Documents" },
   "/vendors": { title: "Contacts" },
+  "/help": { title: "Help", subtitle: "Guide & how-to" },
 };
 
 const PREFIX: [string, Chrome][] = [

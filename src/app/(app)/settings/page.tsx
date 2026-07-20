@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -158,7 +159,14 @@ export default async function SettingsPage() {
           {connectedApps.length === 0 ? (
             <p className="text-[13px] leading-[1.5] text-[#78716c]">
               No apps connected yet. Connect Claude (Code or Desktop) over MCP
-              to create tasks, edit groceries, and read your household data.
+              to create tasks, edit groceries, and read your household data.{" "}
+              <Link
+                href="/help"
+                className="font-medium text-[#059669] underline underline-offset-2"
+              >
+                See the setup guide
+              </Link>
+              .
             </p>
           ) : (
             <ul className="divide-y divide-[#efece9]">
